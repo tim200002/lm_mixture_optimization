@@ -1,0 +1,52 @@
+experiment_config:
+  name: Name of experiment
+  train_data: List of tuples [(domain name, path to manifest file)]
+  val_data: List of tuples [(domain name, path to manifest file)]
+  workspace: Path to folder where experiment will be logged
+  data_workspace: Path to folder where intermediary mixed datasets are stored. Should always be on the big disk
+  delete_dataset_after_run: Whether to delete the mixed dataset after the run
+
+  experiment_tracking:
+    log_path: Path to log file (automatically generated)
+    runs_folder: Path to folder, where the open_lm logs of each run are stored (automatically generated)
+    config_path: Path to file where the experiment config is stored (automatically generated)
+  
+  weight_selector:
+    type: "random"
+    no_weights: int indicating number of weights to generate
+    selector_config: {} # Config for specific weight selector
+  
+  open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
+    complete_train_token_count: 1000000000
+    model: 50m
+    workers: 2
+    global-batch-size: 10
+    log-every-n-steps: 50
+    grad-clip-norm: 1
+    lr: 3e-4
+    warmup: 200
+    wd: 0.1
+    beta2: 0.95
+    epochs: 10
+    report-to: tensorboard
+    data-key: txt
+    lr-cooldown-end: 3e-5
+  
+  data_mixing:
+    no_workers: 8
+    chunk_size: 2048
+  
+  
+  run_history: # Easy to access history of all runs. Automatically generated. Data should align with logs from runs_folder
+    - id: Id of current run, probably just autoincremented number
+      status: String indicating state (initialized, mixed, running, ran, parsed)
+      weights: List of weights used in this run
+      workspace: Path to folder where this run is stored
+      # Once data is created we will add the following
+      mixing_log_path: Path to log file of mixing process
+      dataset: Path to mixed dataset used in this run
+      # Once run completed, we will add the following
+      open_lm_log_dir: Path to output of openLM run
+      train_losses: List of losses per domain on train set [(Books, 0.5), ...]
+      val_losses: List of losses per domain on val set[(C4, 0.5), ...]
+      

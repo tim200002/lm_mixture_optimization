@@ -1,0 +1,61 @@
+data_mixing:
+  chunk_size: 2048
+  no_workers: 8
+data_workspace: /media/ssd1/tim/data_workspace/Test_2
+delete_dataset_after_run: true
+experiment_tracking:
+  config_path: /root/code/mixture_optimization/logs/Test_1/config.yaml
+  log_path: /root/code/mixture_optimization/logs/Test_1/logs.log
+  runs_folder: /root/code/mixture_optimization/logs/Test_1/runs
+name: Test
+open_lm_config:
+  beta2: 0.95
+  complete_train_token_count: 1000000000
+  data-key: txt
+  epochs: 10
+  global-batch-size: 10
+  grad-clip-norm: 1
+  log-every-n-steps: 50
+  lr: 3e-4
+  lr-cooldown-end: 3e-5
+  model: 50m
+  report-to: tensorboard
+  warmup: 200
+  wd: 0.1
+  workers: 2
+run_history: []
+train_data:
+- - Books
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/book/train/2048-v1/0/manifest.jsonl
+- - C4
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/c4/train/2048-v1/0/manifest.jsonl
+- - CC
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/train/2048-v1/0/manifest.jsonl
+- - Wiki
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/en_simple_wiki_v0/train/2048-v1/0/manifest.jsonl
+- - pes2o_v2
+  - vscode-remote://ssh-remote%2Byosemite/media/ssd1/tim/dolma_v1.6_small/tokenized/pes2o_v2/train/2048-v1/0/manifest.jsonl
+- - reddit
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/reddit-v5-dedupe-pii-nsfw-toxic/train/2048-v1/0/manifest.jsonl
+- - stack-v4
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/stack-v4-train/train/2048-v1/0/manifest.jsonl
+val_data:
+- - Books
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/book/val/2048-v1/0/manifest.jsonl
+- - C4
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/c4/val/2048-v1/0/manifest.jsonl
+- - CC
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/val/2048-v1/0/manifest.jsonl
+- - Wiki
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/en_simple_wiki_v0/val/2048-v1/0/manifest.jsonl
+- - pes2o_v2
+  - vscode-remote://ssh-remote%2Byosemite/media/ssd1/tim/dolma_v1.6_small/tokenized/pes2o_v2/val/2048-v1/0/manifest.jsonl
+- - reddit
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/reddit-v5-dedupe-pii-nsfw-toxic/val/2048-v1/0/manifest.jsonl
+- - stack-v4
+  - /media/ssd1/tim/dolma_v1.6_small/tokenized/stack-v4-val/val/2048-v1/0/manifest.jsonl
+weight_selector:
+  no_weights: 2
+  selector_config: {}
+  type: random
+workspace: /root/code/mixture_optimization/logs/Test_1

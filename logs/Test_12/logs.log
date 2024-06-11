@@ -1,0 +1,13 @@
+No run to exectute. Initializing new run.
+Executing pipeline: ['Initialize new run', 'Mix dataset', 'Execute run', 'Parse results', 'Delete dataset']
+Executing stage: Initialize new run
+Executing stage: Mix dataset
+Mixing dataset. Domains: ['Books', 'C4', 'CC', 'Wiki', 'pes2o_v2', 'reddit', 'stack-v4'], mixing weights: [0.09975183184353162, 0.17143398921809305, 0.07391944236456664, 0.11234638211181062, 0.1851129692131423, 0.2485443236426881, 0.10889106160616759], output_dir: /media/ssd1/tim/data_workspace/Test_13/run_0
+Dataset mixed. Now creating manifest
+Manifest created.
+Executing stage: Execute run
+Starting run run_0. Validating that dataset exist.
+Dataset /media/ssd1/tim/data_workspace/Test_13/run_0/manifest.jsonl exists.
+Creating open-lm log directory.
+Assembling open-lm config
+Starting open-lm
