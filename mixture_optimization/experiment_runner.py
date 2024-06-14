@@ -137,11 +137,14 @@ class ExperimentRunner:
         assert run['status'] == "manifest_created" or run['status'] == "running", "Run must be mixed before executing."
         
         dataset_exists = os.path.exists(run['dataset'])
-        open_lm_dir = run['open_lm_log_dir']
-        open_lm_dir_exist = os.path.exists(open_lm_dir)
-        checkpoints_dir = os.path.join(open_lm_dir, "checkpoints")
-        checkpoints_exist = os.path.exists(checkpoints_dir)
-        checkpoints_exist = len(os.listdir(checkpoints_dir)) > 0 if checkpoints_exist else False
+        open_lm_dir = run.get('open_lm_log_dir', None)
+        open_lm_dir_exist = os.path.exists(open_lm_dir) if open_lm_dir else False
+        if open_lm_dir_exist:
+            checkpoints_dir = os.path.join(open_lm_dir, "checkpoints")
+            checkpoints_exist = os.path.exists(checkpoints_dir)
+            checkpoints_exist = len(os.listdir(checkpoints_dir)) > 0 if checkpoints_exist else False
+        else:
+            checkpoints_exist = False
 
         def create_directories():
             self.logger.info("Creating open-lm log directory.")
@@ -279,7 +282,7 @@ class ExperimentRunner:
         
         # Add validation specific parameters
         params.append(("val-frequency", open_lm_config['val_frequency']))
-        params.append(("val-batch-size", open_lm_config['val_batch_size']))
+        params.append(("global-val-batch-size", open_lm_config['global_val_batch_size']))
         params.append(("val-num-samples", open_lm_config['val_num_samples']))
 
         # Add set true parameters

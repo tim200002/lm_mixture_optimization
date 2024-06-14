@@ -36,15 +36,15 @@ open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   
   # validation parameters
   val_frequency: 5
-  val_batch_size: 8
+  global_val_batch_size: 8
   val_num-samples: 250000
 
   # turn on or off parameters
   precision: amp_bfloat16
   qk_norm: true
   grad_checkpointing: false
-  fsdp: true
-  fsdp_amp: true
+  fsdp: false
+  fsdp_amp: false
   
 data_mixing:
   chunk_size: 2048

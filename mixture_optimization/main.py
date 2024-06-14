@@ -17,15 +17,15 @@ def main(config_path: Optional[str] = None, experiment_dir: Optional[str] = None
         experiment_runner = ExperimentRunner.from_checkpoint(experiment_dir)
     
     while not experiment_runner.is_done():
-        experiment_runner.logger("Running next experiment.")  
+        experiment_runner.logger.info("Running next experiment.")  
         experiment_runner.execute_next_run() 
     
-    experiment_runner.logger("All experiments are done.")
+    experiment_runner.logger.info("All experiments are done.")
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--experiment_dir", type=str, default=None)
+    parser.add_argument("--experiment-dir", type=str, default=None)
     parser.add_argument("--config_path", type=str, default=None)
     args = parser.parse_args()
 
