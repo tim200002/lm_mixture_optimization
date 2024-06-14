@@ -1,6 +1,7 @@
 import os
 from typing import Optional
 from mixture_optimization.experiment_runner import ExperimentRunner
+from argparse import ArgumentParser
 
 def main(config_path: Optional[str] = None, experiment_dir: Optional[str] = None):
     assert config_path or experiment_dir, "Either config_path or experiment_dir must be provided."
@@ -15,12 +16,17 @@ def main(config_path: Optional[str] = None, experiment_dir: Optional[str] = None
         assert os.path.exists(config_path), f"Config file {config_path} does not exist."
         experiment_runner = ExperimentRunner.from_checkpoint(experiment_dir)
     
-
-    experiment_runner.execute_next_run() 
+    while not experiment_runner.is_done():
+        experiment_runner.logger("Running next experiment.")  
+        experiment_runner.execute_next_run() 
+    
+    experiment_runner.logger("All experiments are done.")
 
 
 if __name__ == "__main__":
-    config_path = "/root/code/mixture_optimization/config/config.yaml"
-    main(config_path=config_path)
-    # experiment_dir = "/root/code/mixture_optimization/logs/Test_5"
-    # main(experiment_dir=experiment_dir)
+    parser = ArgumentParser()
+    parser.add_argument("--experiment_dir", type=str, default=None)
+    parser.add_argument("--config_path", type=str, default=None)
+    args = parser.parse_args()
+
+    main(experiment_dir=args.experiment_dir, config_path=args.config_path)

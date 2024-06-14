@@ -39,14 +39,15 @@ experiment_config:
   
   run_history: # Easy to access history of all runs. Automatically generated. Data should align with logs from runs_folder
     - id: Id of current run, probably just autoincremented number
-      status: String indicating state (initialized, mixed, running, ran, parsed)
+      status: String indicating state (initialized, mixed, manifest_created running, ran, parsed, deleted)
       weights: List of weights used in this run
       workspace: Path to folder where this run is stored
       # Once data is created we will add the following
       mixing_log_path: Path to log file of mixing process
       dataset: Path to mixed dataset used in this run
-      # Once run completed, we will add the following
+      # Once runing, we will add the following
       open_lm_log_dir: Path to output of openLM run
-      train_losses: List of losses per domain on train set [(Books, 0.5), ...]
-      val_losses: List of losses per domain on val set[(C4, 0.5), ...]
+      # Once parsed we will add the following
+      val_file_path: Path to file with validation results
+      val_results: For each eval episodes dict of performance per domain i.e. [{"domain1": performance, "domain2": performance}]
       

@@ -35,13 +35,30 @@ def pop_random(els):
     return els.pop()
     
 
-def shard_reader(shard_list, mixing_weights):
-    for domain, shard_path in shard_list:
+def shard_reader(shard_list, mixing_weights, added_tokens_set, shard_offset):
+    for shard_idx, domain, shard_path in enumerate(shard_list):
         assert shard_path.endswith(".tar"), "Shard should be a tar file according to the webdataset"
         dataset = wds.WebDataset(shard_path)
-        for sample in dataset:
+        for dataset_idx, sample in enumerate(dataset):
+            element = (shard_idx + shard_offset, dataset_idx)
+            if element in added_tokens_set:
+                continue
             if random.random() < mixing_weights[domain]:
-                yield (domain, sample["txt"])  
+                yield (domain, sample["txt"], element)  
+
+def should_include_domain(domain_name, domains_count, desired_domains_count):
+    if domain_name in desired_domains_count:
+        return domains_count[domain_name] < desired_domains_count[domain_name]
+    return True
+
+def is_complete(domains_count, desired_domains_count):
+    for domain_name, count in domains_count.items():
+        if domain_name in desired_domains_count:
+            if count < desired_domains_count[domain_name]:
+                return False
+        else:
+            return False
+    return True
 
 
 def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights: List[float], output_dir: str, output_token_count: int, chunk_size:int = 2048, no_readers: int = 8, log_path: str = None, log_level: str = "INFO"):
@@ -104,52 +121,71 @@ def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights:
         logger.info(f"{domain}: {weight}. Given total token count: {domain_token_counts[domain]} this results in {int(domain_token_counts[domain] * weight)} tokens")
 
     # # Start processing over shards
+    added_tokens = set()
     output_directory = output_dir
     os.makedirs(output_directory, exist_ok=True)
     shard_writer = ShardWriter(os.path.join(output_directory, "shard-%07d.tar"), maxcount=SHARD_SIZE)
     files_per_worker = len(shards_shuffled) // no_readers
     readers = []
-    for i in range(no_readers):
-        start_idx = i * files_per_worker
-        end_idx = (i+1) * files_per_worker if i != no_readers - 1 else len(shards_shuffled)
-        reader = shard_reader(shards_shuffled[start_idx:end_idx], domain_mix_weights)
-        readers.append(reader)
-    
-    buffer = []
+
     domains_counter = defaultdict(int)
-    while len(readers):
-        for reader in readers:
-            try:
-                domain, item = next(reader)
-                buffer.append(item)
-                domains_counter[domain] += 1
-            except StopIteration:
-                readers.remove(reader)
-                continue
-            # catch all other exceptions and continue
-            except Exception as e:
-                logger.error(f"Error: {e}")
-                continue
+    while not is_complete(domains_counter, domain_mix_weights):
+        for i in range(no_readers):
+            start_idx = i * files_per_worker
+            end_idx = (i+1) * files_per_worker if i != no_readers - 1 else len(shards_shuffled)
+            reader = shard_reader(shards_shuffled[start_idx:end_idx], domain_mix_weights, added_tokens_set=added_tokens, shard_offset=start_idx)
+            readers.append(reader)
         
-        if len(buffer) > BUFFER_MIN:
-            chunk = []
-            for _ in range(SHARD_SIZE):
-                chunk.append(pop_random(buffer))
-            assert len(chunk) == SHARD_SIZE, "Chunk size should be equal to the SHARD_SIZE"
-            write_to_shard(chunk, shard_writer)
-    
-    # Process the remaining items after all readers completed
-    chunk = []
-    while buffer:
-        chunk.append(pop_random(buffer))
-        if len(chunk) == SHARD_SIZE:
-            write_to_shard(chunk, shard_writer)
-            chunk = []
-    
-    # write last not full
-    #! We do not write last chunk to not get any issues with imbalances shards
-    # if chunk:
-    #     write_to_shard(chunk, shard_writer)
+        buffer = []
+        while len(readers):
+            for reader in readers:
+                try:
+                    domain, item, set_element = next(reader)
+                    buffer.append((domain, item, set_element))
+                    
+                except StopIteration:
+                    readers.remove(reader)
+                    continue
+                # catch all other exceptions and continue
+                except Exception as e:
+                    logger.error(f"Error: {e}")
+                    continue
+            
+            if len(buffer) > BUFFER_MIN:
+                chunk = []
+                temp_domain_addition = []
+                while len(chunk) < SHARD_SIZE and buffer:
+                    domain, item, set_element = pop_random(buffer)
+                    if should_include_domain(domain, domains_counter, domain_mix_weights):
+                        temp_domain_addition.append((domain, item, set_element))
+                        chunk.append(item)
+                    elif is_complete(domains_counter, domain_mix_weights):
+                        logger.info("All domains are completed. Aborting the current chunk")
+                        break
+                if len(chunk) == SHARD_SIZE:
+                    write_to_shard(chunk, shard_writer)
+                    for domain, item, set_element in temp_domain_addition:
+                        domains_counter[domain] += 1
+                        added_tokens.add(set_element)
+                else:
+                    logger.info("Chunk is not complete. Adding it back to the buffer")
+                    
+                assert len(chunk) == SHARD_SIZE, "Chunk size should be equal to the SHARD_SIZE"
+                write_to_shard(chunk, shard_writer)
+        
+        # Process the remaining items after all readers completed
+        if is_complete(domains_counter, domain_mix_weights):
+            logger.info("All domains are completed. No longer necessary to process rest of buffer")
+            break
+        chunk = []
+        while buffer:
+            domain, item = pop_random(buffer)
+            if should_include_domain(domain, domains_counter, domain_mix_weights):
+                chunk.append(item)
+                domains_counter[domain] += 1
+            if len(chunk) == SHARD_SIZE:
+                write_to_shard(chunk, shard_writer)
+                chunk = []
     
     shard_writer.close()
 

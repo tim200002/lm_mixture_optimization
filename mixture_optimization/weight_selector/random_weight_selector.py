@@ -5,6 +5,7 @@ import numpy as np
 class RandomWeightSelector(WeightSelectorInterface):
     def __init__(self, config: dict):
         super().__init__(config)
+        self.no_weights = config['no_weights']
     
     def propose_next_weights(self, run_history: List[dict]):
        # Randomly select weights summing up to 1

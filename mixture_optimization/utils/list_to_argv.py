@@ -3,7 +3,13 @@ def list_to_argv(params):
     for param in params:
         if isinstance(param, tuple):
             out.append(f"--{param[0]}")
-            out.append(str(param[1]))
+            
+            # if the value is list iteratoe
+            if isinstance(param[1], list):
+                for val in param[1]:
+                    out.append(str(val))
+            else:
+                out.append(str(param[1]))
         else:
             out.append(f"--{param}")
     
