@@ -1,6 +1,0 @@
-Starting experiment runner.
-No run to exectute. Initializing new run.
-Executing pipeline: ['Initialize new run', 'Mix dataset', 'Execute run', 'Parse results', 'Delete dataset']
-Executing stage: Initialize new run
-Executing stage: Mix dataset
-Mixing dataset. Domains: ['Books', 'C4', 'CC', 'Wiki', 'pes2o_v2', 'reddit', 'stack-v4'], mixing weights: [0.509033781357991, 0.49096621864200907], output_dir: /media/ssd1/tim/data_workspace/Test_3/run_0

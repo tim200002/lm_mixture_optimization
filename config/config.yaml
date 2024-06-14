@@ -12,8 +12,8 @@ weight_selector:
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   complete_train_token_count: 800000000
-  model: 50m
-  workers: 2
+  model: open_lm_41m
+  workers: 1
   global_batch_size: 10
   log_every_n_steps: 50
   grad_clip_norm: 1
@@ -21,7 +21,7 @@ open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   warmup: 200
   wd: 0.1
   beta2: 0.95
-  epochs: 10
+  epochs: 5
   report_to: tensorboard
   data_key: txt
   lr_cooldown_end: 0.00003
