@@ -7,7 +7,7 @@ class RandomWeightSelector(WeightSelectorInterface):
         super().__init__(config)
         self.no_weights = config['no_weights']
     
-    def propose_next_weights(self, run_history: List[dict]):
+    def propose_next_weights(self):
        # Randomly select weights summing up to 1
         weights = np.random.rand(self.no_weights)
         weights /= np.sum(weights)

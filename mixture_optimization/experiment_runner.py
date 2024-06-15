@@ -26,6 +26,7 @@ class ExperimentRunner:
         self.logger.addHandler(logging.FileHandler(config['experiment_tracking']['log_path']))
 
         self.weight_selector = weight_selector_factory(config['weight_selector'])
+        self.weight_selector.parse_history(config['run_history'])
         
 
     @classmethod
@@ -60,15 +61,17 @@ class ExperimentRunner:
         assert not run, "Run must be None before initializing new run. Parameter necessary for pipeline."
         
         run_history = self.config['run_history']
-        if run_history:
-            last_run = run_history[-1]
-            assert last_run["status"] == "finished", "Last run must be finished before initializing new run."
+        other_run_currenlty_running = self.get_latest_run_and_status() != None
+        assert not other_run_currenlty_running, "Another run is currently running. Exiting."
         
-        weights = self.weight_selector.propose_next_weights(run_history)
+        weights = self.weight_selector.propose_next_weights()
+        self.logger.info(f"Next run proposed weights: {weights}")
+
         experiment_name =  f"run_{len(run_history)}"
         workspace = os.path.join(self.config['experiment_tracking']['runs_folder'], experiment_name)
         new_run = {
-            "id": experiment_name,
+            "idx": len(run_history),
+            "name": experiment_name,
             "status": "initialized",
             "weights": weights,
             "workspace": workspace
@@ -86,7 +89,7 @@ class ExperimentRunner:
 
     def mix_dataset(self, run):
         assert run['status'] == "initialized", "Run must be initialized before mixing dataset."
-        data_dir = os.path.join(self.config['data_workspace'], run['id'])
+        data_dir = os.path.join(self.config['data_workspace'], run['name'])
         
         if os.path.exists(data_dir):
             self.logger.warning(f"Data directory {data_dir} already exists. Deleting previous data to create new mixture.")
@@ -118,7 +121,7 @@ class ExperimentRunner:
     
     def create_manifest_for_dataset(self, run):
         assert run['status'] == "mixed", "Run must be mixed before creating manifest."
-        data_dir = os.path.join(self.config['data_workspace'], run['id'])
+        data_dir = os.path.join(self.config['data_workspace'], run['name'])
         assert os.path.exists(data_dir), f"Data directory {data_dir} does not exist. Exiting."
 
         num_workers = self.config['data_mixing']['no_workers']
@@ -130,8 +133,6 @@ class ExperimentRunner:
         self._save_config()
 
         return run
-
-
 
     def execute_run(self, run):
         assert run['status'] == "manifest_created" or run['status'] == "running", "Run must be mixed before executing."
@@ -168,7 +169,7 @@ class ExperimentRunner:
             restore_run = True
             self.logger.info("Resuming run from checkpoints.")
         else:
-            self.logger.error(f"Run {run['id']} is in invalid state. Exiting.")
+            self.logger.error(f"Run {run['name']} is in invalid state. Exiting.")
             self.logger.error(f"Dataset exists: {dataset_exists}, open_lm_dir exists: {open_lm_dir_exist}, checkpoints exist: {checkpoints_exist}")
             exit(1)
         
@@ -223,6 +224,17 @@ class ExperimentRunner:
                 all_results.append(per_domain_results)
         
         run["val_results"] = all_results
+        
+        # calc weighted perplexity on last run
+        val_weights = self.config['val_weights']
+        weighted_perplexity = 0
+        for i, (domain_name, _) in enumerate(self.config['val_data']):
+            weight = val_weights[i]
+            perplexity = all_results[-1][domain_name]["perplexity"]
+            weighted_perplexity += weight * perplexity
+        run["weighted_val_perplexity"] = weighted_perplexity
+        self.weight_selector.add_evaluation(weighted_perplexity, run['idx'])
+
         run['status'] = "parsed"
         self._save_config()
 
@@ -312,10 +324,11 @@ class ExperimentRunner:
             return None
         last_run = run_history[-1]
         last_run_status = last_run['status']
-        run_should_be_deleted = self.config['delete_dataset_after_run']
+        
         if last_run_status == "deleted":
             return None
 
+        run_should_be_deleted = self.config['delete_dataset_after_run']
         if not run_should_be_deleted and last_run_status == "parsed":
             return None
 
@@ -392,6 +405,9 @@ class ExperimentRunner:
             return False
         
         return True
+
+    def get_best_weights(self):
+        return self.weight_selector.get_best_weights()
     
 
 

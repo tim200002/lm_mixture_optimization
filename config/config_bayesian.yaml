@@ -1,15 +1,17 @@
-name: deterministic_baseline_human_intuition_v1
-description: "Deterministic baseline using a single run of some mixtures tuned with human intuition"
+name: bayesian_first_try
+description: "Bayesian optimization first try"
 train_data: [["Books", "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/train/2048-v1/0/manifest.jsonl"], ["C4", "/media/ssd1/tim/dolma_v1.6_small/tokenized/c4/train/2048-v1/0/manifest.jsonl"], ["CC", "/media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/train/2048-v1/0/manifest.jsonl"], ["Wiki", "/media/ssd1/tim/dolma_v1.6_small/tokenized/en_simple_wiki_v0/train/2048-v1/0/manifest.jsonl"], ["pes2o_v2", "/media/ssd1/tim/dolma_v1.6_small/tokenized/pes2o_v2/train/2048-v1/0/manifest.jsonl"], ["reddit", "/media/ssd1/tim/dolma_v1.6_small/tokenized/reddit-v5-dedupe-pii-nsfw-toxic/train/2048-v1/0/manifest.jsonl"], ["stack-v4", "/media/ssd1/tim/dolma_v1.6_small/tokenized/stack-v4-train/train/2048-v1/0/manifest.jsonl"]]
 val_data: [["Books", "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/val/2048-v1/0/shard-0000000.tar"], ["C4", "/media/ssd1/tim/dolma_v1.6_small/tokenized/c4/val/2048-v1/0/shard-0000000.tar"], ["CC", "/media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/val/2048-v1/0/shard-0000000.tar"], ["Wiki", "/media/ssd1/tim/dolma_v1.6_small/tokenized/en_simple_wiki_v0/val/2048-v1/0/shard-0000000.tar"], ["pes2o_v2", "/media/ssd1/tim/dolma_v1.6_small/tokenized/pes2o_v2/val/2048-v1/0/shard-0000000.tar"], ["reddit", "/media/ssd1/tim/dolma_v1.6_small/tokenized/reddit-v5-dedupe-pii-nsfw-toxic/val/2048-v1/0/shard-0000000.tar"], ["stack-v4", "/media/ssd1/tim/dolma_v1.6_small/tokenized/stack-v4-train/val/2048-v1/0/shard-0000000.tar"]]
+val_weights: [0, 0, 1, 0, 0, 0, 0]
 workspace: /root/code/mixture_optimization/logs
 data_workspace: /media/ssd1/tim/data_workspace
 delete_dataset_after_run: False
 max_no_runs: 1
 
 weight_selector:
-  type: "deterministic"
-  weights: [0.2, 6.47, 74.56, 0.14, 2.29, 2.91, 13.43]
+  type: "bayesian"
+  no_weights: 7
+  prior_weights: [0.2, 6.47, 74.56, 0.14, 2.29, 2.91, 13.43]
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # setup
@@ -37,7 +39,7 @@ open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # validation parameters
   val_frequency: 5
   global_val_batch_size: 8
-  val_num-samples: 250000
+  val_num_samples: 250000
 
   # turn on or off parameters
   precision: amp_bfloat16

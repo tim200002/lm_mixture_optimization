@@ -9,5 +9,8 @@ def weight_selector_factory(config) -> WeightSelectorInterface:
     elif type == 'deterministic':
         from mixture_optimization.weight_selector.deterministic_weight_selector import DeterministicWeightSelector
         return DeterministicWeightSelector(config)
+    elif type == 'bayesian':
+        from mixture_optimization.weight_selector.bayesian_selector import BayesianWeightSelector
+        return BayesianWeightSelector(config)
     else:
         raise ValueError(f"Weight selector type {type} not recognized.")

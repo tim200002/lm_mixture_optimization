@@ -5,5 +5,5 @@ class DeterministicWeightSelector(WeightSelectorInterface):
         super().__init__(config)
         self.weights = config["weights"]
 
-    def propose_next_weights(self, run_history: list):
+    def propose_next_weights(self):
         return self.weights
