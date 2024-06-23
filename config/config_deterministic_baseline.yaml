@@ -5,7 +5,7 @@ val_data: [["Books", "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/val/2048-v
 workspace: /root/code/mixture_optimization/logs
 data_workspace: /media/ssd1/tim/data_workspace
 delete_dataset_after_run: False
-max_no_runs: 1
+val_weights: [0, 0, 1, 0, 0, 0, 0]
 
 weight_selector:
   type: "deterministic"
@@ -37,7 +37,7 @@ open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # validation parameters
   val_frequency: 5
   global_val_batch_size: 8
-  val_num-samples: 250000
+  val_num_samples: 250000
 
   # turn on or off parameters
   precision: amp_bfloat16

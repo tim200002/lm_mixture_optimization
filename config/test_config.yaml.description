@@ -6,6 +6,7 @@ experiment_config:
   workspace: Path to folder where experiment will be logged
   data_workspace: Path to folder where intermediary mixed datasets are stored. Should always be on the big disk
   delete_dataset_after_run: Whether to delete the mixed dataset after the run
+  dataset_tag: Tag of dataset, e.g., dolma_v1.6small
 
   experiment_tracking:
     log_path: Path to log file (automatically generated)
@@ -16,6 +17,16 @@ experiment_config:
     type: "random"
     no_weights: int indicating number of weights to generate
     selector_config: {} # Config for specific weight selector
+
+  weight_selector:
+    type: "turbo"
+    no_weights: int indicating number of weights to generate
+    no_initialization_runs: No of initialization runs using sobol
+    no_restarts: No of turbo restarts to conduct
+    self.overwrite_start: If true will overwrite initial restart weights, otherwise selects best performing weights form initialization
+
+    # After initialization automatically added
+    initialization_weights: List of sobol generated weights 
   
   open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
     complete_train_token_count: 1000000000

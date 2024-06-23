@@ -6,12 +6,12 @@ val_weights: [0, 0, 1, 0, 0, 0, 0]
 workspace: /root/code/mixture_optimization/logs
 data_workspace: /media/ssd1/tim/data_workspace
 delete_dataset_after_run: False
-max_no_runs: 1
 
 weight_selector:
   type: "bayesian"
   no_weights: 7
-  prior_weights: [0.2, 6.47, 74.56, 0.14, 2.29, 2.91, 13.43]
+  no_sobol: 5
+  no_bayesian: 10
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # setup

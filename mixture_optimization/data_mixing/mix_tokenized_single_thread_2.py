@@ -156,7 +156,7 @@ def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights:
     # reorder to have mixing weights according to domains
     out_mixing_weights = []
     for domain in domains:
-        out_mixing_weights.append(true_mixing_weights[domain])
+        out_mixing_weights.append(true_mixing_weights.get(domain, 0))
     
     return out_mixing_weights
 

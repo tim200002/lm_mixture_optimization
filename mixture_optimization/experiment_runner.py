@@ -14,8 +14,6 @@ import shutil
 import sys
 import json
 
-
-
 class ExperimentRunner:
     
     def __init__(self, config):
@@ -25,8 +23,8 @@ class ExperimentRunner:
         self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
         self.logger.addHandler(logging.FileHandler(config['experiment_tracking']['log_path']))
 
-        self.weight_selector = weight_selector_factory(config['weight_selector'])
-        self.weight_selector.parse_history(config['run_history'])
+        self.weight_selector = weight_selector_factory(config)
+        self._save_config() # weight selector potentially adds info to config
         
 
     @classmethod
@@ -64,7 +62,7 @@ class ExperimentRunner:
         other_run_currenlty_running = self.get_latest_run_and_status() != None
         assert not other_run_currenlty_running, "Another run is currently running. Exiting."
         
-        weights = self.weight_selector.propose_next_weights()
+        weights, kwargs = self.weight_selector.propose_next_weights()
         self.logger.info(f"Next run proposed weights: {weights}")
 
         experiment_name =  f"run_{len(run_history)}"
@@ -74,7 +72,8 @@ class ExperimentRunner:
             "name": experiment_name,
             "status": "initialized",
             "weights": weights,
-            "workspace": workspace
+            "workspace": workspace,
+            **kwargs
         }
 
         if os.path.exists(workspace):
@@ -193,7 +192,6 @@ class ExperimentRunner:
         assert run['status'] == "ran", "Run must be ran before parsing results."
         open_lm_log_dir = run['open_lm_log_dir']
         val_file_path = os.path.join(open_lm_log_dir, "checkpoints", "results.jsonl")
-        val_file_path = "logs/Test_3/runs/run_0/open_lm/run_0/checkpoints/results.jsonl"
         assert os.path.exists(val_file_path), f"Validation file {val_file_path} does not exist. Exiting."
         run["val_file_path"] = val_file_path
 
@@ -393,18 +391,21 @@ class ExperimentRunner:
         
         return run
 
+    # def is_done(self):
+    #     max_runs = self.config['max_no_runs']
+    #     no_runs = len(self.config['run_history'])
+    #     assert no_runs <= max_runs, f"Number of runs {no_runs} exceeds maximum number of runs {max_runs}. Exiting."
+    #     if no_runs < max_runs:
+    #         return False
+        
+    #     last_run_state = self.get_latest_run_and_status()
+    #     if last_run_state != None: # this indicates that the last run did not yet finish but was aborted
+    #         return False
+        
+    #     return True
+
     def is_done(self):
-        max_runs = self.config['max_no_runs']
-        no_runs = len(self.config['run_history'])
-        assert no_runs <= max_runs, f"Number of runs {no_runs} exceeds maximum number of runs {max_runs}. Exiting."
-        if no_runs < max_runs:
-            return False
-        
-        last_run_state = self.get_latest_run_and_status()
-        if last_run_state != None: # this indicates that the last run did not yet finish but was aborted
-            return False
-        
-        return True
+        return self.weight_selector.experiment_done()
 
     def get_best_weights(self):
         return self.weight_selector.get_best_weights()

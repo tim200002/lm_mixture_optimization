@@ -28,7 +28,7 @@ def main(config_path: Optional[str] = None, experiment_dir: Optional[str] = None
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--experiment-dir", type=str, default=None)
-    parser.add_argument("--config_path", type=str, default=None)
+    parser.add_argument("--config-path", type=str, default=None)
     args = parser.parse_args()
 
     main(experiment_dir=args.experiment_dir, config_path=args.config_path)
