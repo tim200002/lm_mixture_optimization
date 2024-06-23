@@ -10,13 +10,13 @@ from botorch.exceptions import BadInitialCandidatesWarning
 from botorch.fit import fit_gpytorch_mll
 from botorch.models import SingleTaskGP
 from botorch.optim import optimize_acqf
-from torch.quasirandom import SobolEngine
 
 import gpytorch
 from gpytorch.constraints import Interval
 from gpytorch.kernels import MaternKernel, ScaleKernel
 from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood
+from botorch.utils.sampling import sample_hypersphere
 
 logger = logging.getLogger("experiment_runner")
 
@@ -104,7 +104,6 @@ class TurboWeightSelector(WeightSelectorInterface):
         super().__init__(config)
         self.no_weights = config['no_weights']
         assert self.no_weights > 1, "Bayesian optimization requires at least 2 weights"
-        self.no_free_weights = self.no_weights - 1
         self.bathc_size = 1 # right now we dont support parallel processing
         self.state = None
         self.completed_runs = 0
@@ -113,16 +112,12 @@ class TurboWeightSelector(WeightSelectorInterface):
         self.num_restarts = 10
         self.raw_samples = 512
         self.dtype = torch.double
-        
-        
-        
-       
+          
 
         # Tracking
         self.initialization_runs = [] # list of initialization runs, each dict with keys trial_idx, free_weights, value
         self.current_turbo_run = [] # list of dict with keys trial_idx, free_weights, value
         self.best_result = None
-
 
 
         # Initialization
@@ -136,12 +131,10 @@ class TurboWeightSelector(WeightSelectorInterface):
             self.initialization_weights = config["initialization_weights"]
             assert len(self.initialization_weights) == self.no_initialization_runs, "Wrong number of initialization weights"
         else:
-            # Sobol initialization
-            sobol = SobolEngine(self.no_weights, scramble=True)
-            drawn_weights = sobol.draw(self.no_initialization_runs)
-            row_sum = drawn_weights.sum(dim=1, keepdim=True)
-            drawn_weights_normalized = drawn_weights / row_sum
-            self.initialization_weights = drawn_weights_normalized[:,:-1].tolist()
+            samples = sample_hypersphere(
+                self.no_weights, self.no_initialization_runs, qmc=True
+            )
+            self.initialization_weights = samples.tolist()
             config["initialization_weights"] = self.initialization_weights
 
         # Reload history
@@ -174,7 +167,7 @@ class TurboWeightSelector(WeightSelectorInterface):
             mixing_weights = run["true_mixing_weights"]
             free_weights = mixing_weights[:-1]
             reference_weights = self.initialization_weights[i]
-            #assert torch.allclose(torch.tensor(free_weights), torch.tensor(reference_weights), atol=1e-3), "Weights mismatch"
+            assert torch.allclose(torch.tensor(free_weights), torch.tensor(reference_weights), atol=1e-3), "Weights mismatch"
 
             obj = {
                 "trial_idx": trial_index,
@@ -321,7 +314,8 @@ class TurboWeightSelector(WeightSelectorInterface):
     def _add_evaluation_turbo(self, perplexity, trial_index):
         logger.info("Adding evaluation to latest turbo run")
         value_inv = - perplexity
-        self.state = update_state(self.state, value_inv) 
+        value_tensor = torch.tensor([value_inv], dtype=self.dtype)
+        self.state = update_state(self.state, value_tensor) 
         assert self.current_turbo_run[-1]["trial_idx"] == trial_index, "Run index mismatch"
         self.current_turbo_run[-1]["value"] = value_inv
         # Experiment tracking

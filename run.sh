@@ -1,11 +1,11 @@
 
 #!/bin/bash
 
-export CUDA_VISIBLE_DEVICES=3  # Use GPU 0
+export CUDA_VISIBLE_DEVICES=2  # Use GPU 0
 export PYTHONPATH="$PYTHONPATH:/root/code/open_lm"
 export PYTHONPATH="$PYTHONPATH:/root/code/mixture_optimization"
 
 cd /root/code/mixture_optimization
 #python -m mixture_optimization.main --config_path config/config_bayesian.yaml
-python -m mixture_optimization.main --experiment-dir logs/turbo_0
-#python -m mixture_optimization.main --config-path config/config_turbo.yaml
+#python -m mixture_optimization.main --experiment-dir logs/turbo_0
+python -m mixture_optimization.main --config-path config/config_simplex.yaml

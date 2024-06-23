@@ -15,5 +15,8 @@ def weight_selector_factory(config) -> WeightSelectorInterface:
     elif type == 'turbo':
         from mixture_optimization.weight_selector.turbo_selector import TurboWeightSelector
         return TurboWeightSelector(config["weight_selector"], config["run_history"])
+    elif type == 'hypersphere':
+        from mixture_optimization.weight_selector.simplex_selector import RandomSimplexSelector
+        return RandomSimplexSelector(config["weight_selector"])
     else:
         raise ValueError(f"Weight selector type {type} not recognized.")
