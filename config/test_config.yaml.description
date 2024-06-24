@@ -8,25 +8,15 @@ experiment_config:
   delete_dataset_after_run: Whether to delete the mixed dataset after the run
   dataset_tag: Tag of dataset, e.g., dolma_v1.6small
 
-  experiment_tracking:
+  experiment_tracking_config:
     log_path: Path to log file (automatically generated)
     runs_folder: Path to folder, where the open_lm logs of each run are stored (automatically generated)
     config_path: Path to file where the experiment config is stored (automatically generated)
   
-  weight_selector:
+  weight_selector_config:
     type: "random"
     no_weights: int indicating number of weights to generate
     selector_config: {} # Config for specific weight selector
-
-  weight_selector:
-    type: "turbo"
-    no_weights: int indicating number of weights to generate
-    no_initialization_runs: No of initialization runs using sobol
-    no_restarts: No of turbo restarts to conduct
-    self.overwrite_start: If true will overwrite initial restart weights, otherwise selects best performing weights form initialization
-
-    # After initialization automatically added
-    initialization_weights: List of sobol generated weights 
   
   open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
     complete_train_token_count: 1000000000
@@ -48,9 +38,11 @@ experiment_config:
     no_workers: 8
     chunk_size: 2048
   
-  
-  run_history: # Easy to access history of all runs. Automatically generated. Data should align with logs from runs_folder
-    - idx: Idx of current run
+  # Easy to access history of all runs. Automatically generated. Data should align with logs from runs_folder
+  experiment_history: [
+    - config: {}
+    - trials: [{
+      idx: Idx of current run
       name: idx in better readable form
       status: String indicating state (initialized, mixed, manifest_created running, ran, parsed, deleted)
       weights: List of weights used in this run
@@ -65,3 +57,7 @@ experiment_config:
       val_file_path: Path to file with validation results
       val_results: For each eval episodes dict of performance per domain i.e. [{"domain1": performance, "domain2": performance}]
       weighted_val_perplexity: Final metric we optimize for
+    }
+    ]
+  ]
+  

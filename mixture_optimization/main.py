@@ -17,8 +17,9 @@ def main(config_path: Optional[str] = None, experiment_dir: Optional[str] = None
         experiment_runner = ExperimentRunner.from_checkpoint(experiment_dir)
     
     while not experiment_runner.is_done():
-        experiment_runner.logger.info("Running next experiment.")  
-        experiment_runner.execute_next_run() 
+        experiment_runner.logger.info("Running next Iteration")  
+        experiment_runner.check_and_create_new_experiment()
+        experiment_runner.execute_next_trial() 
     
     experiment_runner.logger.info("All experiments are done.")
     best_weights = experiment_runner.get_best_weights()

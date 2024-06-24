@@ -1,17 +1,17 @@
 import logging
+from mixture_optimization.datamodels.trial_tracking_config import Experiment
+from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
 from mixture_optimization.weight_selector.weight_selector_interface import WeightSelectorInterface
 from ax.service.ax_client import AxClient, ObjectiveProperties
 from ax.modelbridge.registry import Models
 from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationStep
-from typing import List
+from typing import List, Optional
 
 logger = logging.getLogger("experiment_runner")
 
 class BayesianWeightSelector(WeightSelectorInterface):
-    def __init__(self, config: dict, run_history = None):
+    def __init__(self, config: WeightSelectorConfig, experiment_history: Optional[List[Experiment]]= None):
         super().__init__(config)
-        self.no_weights = config['no_weights']
-        assert self.no_weights > 1, "Bayesian optimization requires at least 2 weights"
         self.no_free_weights = self.no_weights - 1
         no_sobol, no_bayesian = config["no_sobol"], config["no_bayesian"]
 
@@ -82,6 +82,8 @@ class BayesianWeightSelector(WeightSelectorInterface):
         logger.info(f"Setup new experiment. After parsing history, in addition to possibly resumed run, we have left sobol: {no_sobol} and bayesian: {no_bayesian} runs to perform.")
         logger.info(f"We already have {exp_counter} runs completed. In total there are {self.no_runs} runs to be performed.")
 
+    def check_and_initialize_new_experiment(self):
+        
 
     def _parse_history(self, run_history: List[dict]):
         for i, run in enumerate(run_history):
