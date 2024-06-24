@@ -32,6 +32,7 @@ class ValResult:
 @define
 class Trial:
     idx: int
+    experiment_idx: int
     name: str
     status: TrialStatus
     type: TrialType
@@ -51,7 +52,7 @@ class Trial:
 @frozen
 class ExperimentConfig:
     initialization_weights: List[List[float]] 
-    trial_offset: int
+    experiment_idx: int
 
 @define
 class Experiment:

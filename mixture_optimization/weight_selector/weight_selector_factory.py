@@ -6,10 +6,10 @@ from mixture_optimization.weight_selector.weight_selector_interface import Weigh
 
 
 def _weight_selector_factory(config: WeightSelectorConfig) -> WeightSelectorInterface:
+    """
+    Returns class instance based on the weight selector type
+    """
     type = config.type
-    # if type == 'random':
-    #     from mixture_optimization.weight_selector.random_weight_selector import RandomWeightSelector
-    #     cls =  RandomWeightSelector
        
     if type == WeightSelectorType.DETERMINISTIC:
         from mixture_optimization.weight_selector.deterministic_weight_selector import DeterministicWeightSelector
@@ -28,16 +28,9 @@ def _weight_selector_factory(config: WeightSelectorConfig) -> WeightSelectorInte
 
     return cls
 
-def weight_selector_from_scratch(weight_selector_config: WeightSelectorConfig, experiment_history: List[Experiment]) -> Tuple[WeightSelectorInterface, ExperimentConfig]:
-    # get latest offset
-    trial_offset = 0
-    if len(experiment_history) > 0 and len(experiment_history[-1].trials) > 0:
-        trial_offset = experiment_history[-1].trials[-1].idx + 1
-    elif len(experiment_history) > 1:
-        trial_offset = experiment_history[-2].trials[-1].idx + 1
-    
+def weight_selector_from_scratch(weight_selector_config: WeightSelectorConfig, experiment_idx: int) -> Tuple[WeightSelectorInterface, ExperimentConfig]:
     cls = _weight_selector_factory(weight_selector_config)
-    return cls.from_scratch(weight_selector_config, trial_offset)
+    return cls.from_scratch(weight_selector_config, experiment_idx)
 
 def weight_selector_from_history(weight_selecor_config: WeightSelectorConfig, experiment:Experiment) -> WeightSelectorInterface:
     cls = _weight_selector_factory(weight_selecor_config)

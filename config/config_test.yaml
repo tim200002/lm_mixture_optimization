@@ -18,7 +18,7 @@ experiment_manager_config:
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # setup
-  complete_train_token_count: 5000000
+  complete_train_token_count: 500000000
   model: open_lm_25m.json
   seed: 100
   data_key: txt

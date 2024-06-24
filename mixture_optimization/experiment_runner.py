@@ -30,7 +30,7 @@ class ExperimentRunner:
         # Initialize experiment manager
         self.experimemt_manager = ExperimentManager(config.experiment_manager_config)
         if len(config.experiment_history) == 0:
-            exp_config = self.experimemt_manager.create_next_experiment(config.experiment_history)
+            exp_config = self.experimemt_manager.create_next_experiment()
             config.experiment_history.append(Experiment(exp_config))
         elif len(config.experiment_history) > 0:
             self.experimemt_manager.parse_history(config.experiment_history)
@@ -67,7 +67,7 @@ class ExperimentRunner:
     def check_and_create_new_experiment(self):
         if self.experimemt_manager.check_experiment_done():
             self.logger.info("Experiment done. Creating new experiment.")
-            exp_config = self.experimemt_manager.create_next_experiment(self.config.experiment_history)
+            exp_config = self.experimemt_manager.create_next_experiment()
             self.config.experiment_history.append(Experiment(exp_config))
             self._save_config()
 
@@ -78,17 +78,20 @@ class ExperimentRunner:
         """
         assert not trial, "Run must be None before initializing new run. Parameter necessary for pipeline."
         
-        trial_idx = sum([len(experiment.trials) for experiment in self.config.experiment_history])
+        # trial_idx = sum([len(experiment.trials) for experiment in self.config.experiment_history])
+        experiment_idx = self.experimemt_manager.get_experiment_idx()
+        trial_idx = self.experimemt_manager.get_next_trial_idx()
         other_run_currenlty_running = self.get_latest_run_and_status() != None
         assert not other_run_currenlty_running, "Another run is currently running. Exiting."
         
         weights, trial_type = self.experimemt_manager.propose_next_weights()
         self.logger.info(f"Next run proposed weights: {weights}")
 
-        trial_name =  f"run_{trial_idx}"
+        trial_name =  f"exp_{experiment_idx}_trial_{trial_idx}"
         workspace = os.path.join(self.config.experiment_tracking_config.runs_folder, trial_name)
         new_trial = Trial(
             idx=trial_idx,
+            experiment_idx=experiment_idx,
             name=trial_name,
             status=TrialStatus.INITIALIZED,
             weights=weights,

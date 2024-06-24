@@ -18,7 +18,6 @@ class WeightSelectorInterface:
         self.config = config
         self.experiment_config = experiment_config
         assert self.config.no_weights > 1, "Optimization requires at least 2 weights"
-        self.trial_offset = experiment_config.trial_offset
         self.trial_memory: List[TrialMemoryUnit] = []
 
     def setup(self, experiment_history: Optional[Experiment]) -> Tuple[bool, ExperimentConfig]:
@@ -94,5 +93,10 @@ class WeightSelectorInterface:
             if trial.trial_type == TrialType.OPTIMIZATION and trial.value is not None:
                 no_optimization_completed += 1
         return no_optimization_completed
+
+    def get_next_trial_idx(self) -> int:
+        assert self.no_initialization_started() == self.no_optimization_completed(), "Inconsistent trial count. We can only have one trial running at one time"
+        assert self.no_optimization_started() == self.no_optimization_completed(), "Inconsistent trial count. We can only have one trial running at one time"
+        return len(self.trial_memory)
     
     

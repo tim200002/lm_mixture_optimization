@@ -12,9 +12,9 @@ logger = logging.getLogger("experiment_runner")
 class RandomSimplexSelector(WeightSelectorInterface):
 
     @staticmethod
-    def from_scratch(config: WeightSelectorConfig, trial_offset: None) -> Tuple[WeightSelectorInterface, ExperimentConfig]:
+    def from_scratch(config: WeightSelectorConfig, exp_idx: int) -> Tuple[WeightSelectorInterface, ExperimentConfig]:
         samples = sample_simplex(config.no_weights, config.no_initializations, qmc=True).tolist()
-        exp_config = ExperimentConfig(initialization_weights=samples, trial_offset=trial_offset)
+        exp_config = ExperimentConfig(initialization_weights=samples, experiment_idx=exp_idx)
         return RandomSimplexSelector(config, exp_config), exp_config
     
     @staticmethod

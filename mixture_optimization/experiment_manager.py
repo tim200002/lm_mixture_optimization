@@ -23,9 +23,9 @@ class ExperimentManager:
         # in case we are at last experiment, check if all trials are done
         return self.check_experiment_done()
     
-    def create_next_experiment(self, experiment_history: List[Experiment]) -> ExperimentManagerConfig:
+    def create_next_experiment(self) -> ExperimentManagerConfig:
         self.no_experiments += 1
-        weight_selector, expconfig = weight_selector_from_scratch(self.config.weight_selector_config, experiment_history)
+        weight_selector, expconfig = weight_selector_from_scratch(self.config.weight_selector_config, self.no_experiments - 1) # 0-indexed
         self.weight_selector = weight_selector
         return expconfig
     
@@ -49,6 +49,15 @@ class ExperimentManager:
     
     def propose_next_weights(self) -> Tuple[List[float], TrialType]:
         return self.weight_selector.propose_next_weights()
+    
+    def get_experiment_idx(self) -> int:
+        assert self.no_experiments > 0, "No experiments started"
+        return self.no_experiments - 1
+
+    def get_next_trial_idx(self) -> int:
+        assert self.no_experiments > 0, "No experiments started"
+        assert self.weight_selector, "No weight selector initialized"
+        return self.weight_selector.get_next_trial_idx()
     
     
 
