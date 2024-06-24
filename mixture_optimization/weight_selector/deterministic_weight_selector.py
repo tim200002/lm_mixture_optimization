@@ -1,4 +1,3 @@
-from typing import List
 from mixture_optimization.datamodels.trial_tracking_config import ExperimentConfig, TrialType
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
 from mixture_optimization.weight_selector.weight_selector_interface import WeightSelectorInterface

@@ -2,6 +2,7 @@ import logging
 from typing import List, Tuple
 from mixture_optimization.datamodels.trial_tracking_config import Experiment, ExperimentConfig, Trial, TrialType
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
+from mixture_optimization.weight_selector.utils.botorch_constraints import create_probability_constraint_free_weights
 from mixture_optimization.weight_selector.weight_selector_interface import TrialMemoryUnit, WeightSelectorInterface
 import math
 from dataclasses import dataclass
@@ -131,44 +132,19 @@ class TurboWeightSelector(WeightSelectorInterface):
         self.current_turbo_run = [] # list of dict with keys trial_idx, free_weights, value
         self.best_result = None
     
-    def propose_next_weights(self):
-        if self.no_initialization_runs < self.config.no_initializations:
-            assert self.no_optimization_started() == 0, "Optimization started before all initializations are done"
-            return self._propose_next_weights_initialization()
-        else:
-            assert self.no_initialization_completed == self.config.no_initializations, "Not all initializations are done"
-            return self._propose_next_weights_turbo()
-    
-    def _propose_next_weights_initialization(self):  
-        assert self.no_optimization_started() == 0, "Optimization started before all initializations are done"
-        trial_idx = self.get_next_trial_idx()      
-        assert trial_idx < self.no_initialization_runs, "Too many initialization runs"
-        weights = self.experiment_config.initialization_weights[trial_idx]
 
-        unit = TrialMemoryUnit(
-            trial_index=trial_idx,
-            trial_type=TrialType.INITIALIZATION,
-            weights=weights
-        )
-        self.trial_memory.append(unit)
-        return weights, TrialType.INITIALIZATION
-
-
-    def _propose_next_weights_turbo(self):
+    def _propose_next_weights_optimization(self):
         # preliminary checks
         assert all([run.value is not None for run in self.trial_memory]), "All runs must be evaluated before proposing next weights"
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Proposing next turbo weights. Using device {device}")
         # Generate new sampling points    
-        X = torch.tensor([run.weights for run in self.trial_memory], dtype=self.dtype, device=device)
+        X = torch.tensor([run.weights[:-1] for run in self.trial_memory], dtype=self.dtype, device=device) #! Only use free weights
         Y = torch.tensor([run.value for run in self.trial_memory], dtype=self.dtype, device=device).unsqueeze(-1)
 
-        # generate inequality constrain, i.e. sum of free weights <= 1
-        # inequality_constraints (List[Tuple[Tensor, Tensor, float]] | None) – A list of tuples (indices, coefficients, rhs), with each tuple encoding an inequality constraint of the form sum_i (X[indices[i]] * coefficients[i]) >= rhs. indices and coefficients should be torch tensors.
-        # as fom sum(X) <= 1 follows -sum(X) >= -1, the constraint takes the form
-        constraint = (torch.arange(self.no_free_weights, device=device), -1* torch.ones(self.no_free_weights, dtype=self.dtype, device=device), -1.0)
-        constraints = [constraint]
+        pdf_constraint = create_probability_constraint_free_weights(self.no_free_weights, self.dtype, device)
+        constraints = [pdf_constraint]
         
         train_y = (Y - Y.mean()) / Y.std()
         likelihood = GaussianLikelihood()

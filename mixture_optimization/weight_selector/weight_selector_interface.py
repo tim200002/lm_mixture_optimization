@@ -32,7 +32,32 @@ class WeightSelectorInterface:
         self.trial_memory[-1].value = value_optim
 
     def propose_next_weights(self) -> Tuple[List[float], TrialType]:
+        if self.no_initialization_runs < self.config.no_initializations:
+            assert self.no_optimization_started() == 0, "Optimization started before all initializations are done"
+            return self._propose_next_weights_initialization()
+        else:
+            assert self.no_initialization_completed == self.config.no_initializations, "Not all initializations are done"
+            return self._propose_next_weights_optimization()
+    
+    def _propose_next_weights_optimization(self):
         raise NotImplementedError
+
+    def _propose_next_weights_initialization(self):  
+        """
+        Helper function to sample next weigthts from the initialization array
+        """
+        assert self.no_optimization_started() == 0, "Optimization started before all initializations are done"
+        trial_idx = self.get_next_trial_idx()      
+        assert trial_idx < self.no_initialization_runs, "Too many initialization runs"
+        weights = self.experiment_config.initialization_weights[trial_idx]
+
+        unit = TrialMemoryUnit(
+            trial_index=trial_idx,
+            trial_type=TrialType.INITIALIZATION,
+            weights=weights
+        )
+        self.trial_memory.append(unit)
+        return weights, TrialType.INITIALIZATION
     
     def get_best_weights(self) -> Tuple[List[float], float]:
         best_value = -float('inf')
