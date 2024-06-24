@@ -1,6 +1,8 @@
 import logging
-from typing import List
-from mixture_optimization.weight_selector.weight_selector_interface import WeightSelectorInterface
+from typing import List, Tuple
+from mixture_optimization.datamodels.trial_tracking_config import Experiment, ExperimentConfig, Trial, TrialType
+from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
+from mixture_optimization.weight_selector.weight_selector_interface import TrialMemoryUnit, WeightSelectorInterface
 import math
 from dataclasses import dataclass
 
@@ -16,7 +18,7 @@ from gpytorch.constraints import Interval
 from gpytorch.kernels import MaternKernel, ScaleKernel
 from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood
-from botorch.utils.sampling import sample_hypersphere
+from botorch.utils.sampling import sample_simplex
 
 logger = logging.getLogger("experiment_runner")
 
@@ -38,7 +40,6 @@ class TurboState:
         self.failure_tolerance = math.ceil(
             max([4.0 / self.batch_size, float(self.dim) / self.batch_size])
         )
-
 
 
 def update_state(state, Y_next):
@@ -100,14 +101,25 @@ def generate_sample(
 
 
 class TurboWeightSelector(WeightSelectorInterface):
-    def __init__(self, config: dict, run_history = None):
-        super().__init__(config)
-        self.no_weights = config['no_weights']
-        assert self.no_weights > 1, "Bayesian optimization requires at least 2 weights"
-        self.bathc_size = 1 # right now we dont support parallel processing
-        self.state = None
-        self.completed_runs = 0
 
+    @staticmethod
+    def from_scratch(config: WeightSelectorConfig, exp_idx: int) -> Tuple[WeightSelectorInterface, ExperimentConfig]:
+        samples = sample_simplex(config.no_weights, config.no_initializations, qmc=True).tolist()
+        exp_config = ExperimentConfig(initialization_weights=samples, experiment_idx=exp_idx)
+        return TurboWeightSelector(config, exp_config), exp_config
+    
+    @staticmethod
+    def from_history(config: WeightSelectorConfig, experiment: Experiment) -> WeightSelectorInterface:
+        return TurboWeightSelector(config, experiment.config)
+
+    def __init__(self, config: WeightSelectorConfig, experiment_config: ExperimentConfig):
+        super().__init__(config, experiment_config)
+        assert config.no_optimizations == None, "Turbo selector uses custom logic for ending optimization"
+
+        self.batch_size = 1 # right now we dont support parallel processing
+        self.state = None
+        self.no_free_weights = self.config.no_weights - 1
+ 
         # Some turbo hyperparameters
         self.num_restarts = 10
         self.raw_samples = 512
@@ -118,124 +130,41 @@ class TurboWeightSelector(WeightSelectorInterface):
         self.initialization_runs = [] # list of initialization runs, each dict with keys trial_idx, free_weights, value
         self.current_turbo_run = [] # list of dict with keys trial_idx, free_weights, value
         self.best_result = None
-
-
-        # Initialization
-        self.no_initialization_runs = config["no_initialization_runs"]
-        self.desired_no_restarts = config["no_restarts"]
-        assert self.desired_no_restarts == 1, "Only one restart supported for now"
-
-        # Reload initialization
-        if "initialization_weights" in config:
-            logger.info("Reloading initialization weights")
-            self.initialization_weights = config["initialization_weights"]
-            assert len(self.initialization_weights) == self.no_initialization_runs, "Wrong number of initialization weights"
-        else:
-            samples = sample_hypersphere(
-                self.no_weights, self.no_initialization_runs, qmc=True
-            )
-            self.initialization_weights = samples.tolist()
-            config["initialization_weights"] = self.initialization_weights
-
-        # Reload history
-        if run_history is not None:
-            self._parse_history(run_history)
-
-
-    def _parse_history(self, run_history: List[dict]):
-        history_initialization = []
-        history_turbo = []
-        for run in run_history:
-            if run["generation_strategy"] == "initialization":
-                history_initialization.append(run)
-            elif run["generation_strategy"] == "turbo":
-                history_turbo.append(run)
-            else:
-                raise ValueError("Unknown generation_strategy")
-        
-        if len(history_initialization) > 0:
-            self._parse_history_initialization(history_initialization)
-        if len(history_turbo) > 0:
-            self._parse_history_turbo(history_turbo)
-    
-    def _parse_history_initialization(self, run_history: List[dict]):
-        assert len(run_history) <= self.no_initialization_runs, "Too many initialization runs"
-
-        for i, run in enumerate(run_history):
-            trial_index = run["idx"]
-            assert trial_index == i, "Trial index mismatch"
-            mixing_weights = run["true_mixing_weights"]
-            free_weights = mixing_weights[:-1]
-            reference_weights = self.initialization_weights[i]
-            assert torch.allclose(torch.tensor(free_weights), torch.tensor(reference_weights), atol=1e-3), "Weights mismatch"
-
-            obj = {
-                "trial_idx": trial_index,
-                "free_weights": free_weights,
-                "value": None
-            }
-
-            self.initialization_runs.append(obj)
-            if "weighted_val_perplexity" in run:
-                perplexity = run["weighted_val_perplexity"]
-                self.add_evaluation(perplexity, trial_index)
-
-
-    def _parse_history_turbo(self, run_history: List[dict]):
-        # find latest restart index
-        self.state = self._init_state()
-        for run in run_history:
-            trial_index = run["idx"]
-            mixing_weights = run["true_mixing_weights"]
-            free_weights = mixing_weights[:-1]
-
-            obj = {
-                "trial_idx": trial_index,
-                "free_weights": free_weights,
-                "value": None
-            }    
-            self.current_turbo_run.append(obj)
-     
-            if "weighted_val_perplexity" in run:
-                perplexity = run["weighted_val_perplexity"]
-                self.add_evaluation(perplexity, trial_index)
-
-    def _init_state(self):
-        best_value = max([run["value"] for run in self.initialization_runs])
-        logger.info(f"Initializing turbo state from best value {best_value}")
-        return TurboState(dim=self.no_free_weights, batch_size=self.bathc_size, best_value=best_value)
     
     def propose_next_weights(self):
-        if self.completed_runs < self.no_initialization_runs:
+        if self.no_initialization_runs < self.config.no_initializations:
+            assert self.no_optimization_started() == 0, "Optimization started before all initializations are done"
             return self._propose_next_weights_initialization()
         else:
+            assert self.no_initialization_completed == self.config.no_initializations, "Not all initializations are done"
             return self._propose_next_weights_turbo()
     
-    def _propose_next_weights_initialization(self):        
-        trial_idx = self.completed_runs
+    def _propose_next_weights_initialization(self):  
+        assert self.no_optimization_started() == 0, "Optimization started before all initializations are done"
+        trial_idx = self.get_next_trial_idx()      
         assert trial_idx < self.no_initialization_runs, "Too many initialization runs"
-        free_weights = self.initialization_weights[trial_idx]
-        weights = self._convert_free_weights_to_pdf(free_weights)
+        weights = self.experiment_config.initialization_weights[trial_idx]
 
-        return weights, {"generation_strategy": "initialization"}
+        unit = TrialMemoryUnit(
+            trial_index=trial_idx,
+            trial_type=TrialType.INITIALIZATION,
+            weights=weights
+        )
+        self.trial_memory.append(unit)
+        return weights, TrialType.INITIALIZATION
 
 
     def _propose_next_weights_turbo(self):
-        # case 1 the first value is probably best found via sobol
-        if self.current_turbo_run == []:
-            self.state = self._init_state()
+        # preliminary checks
+        assert all([run.value is not None for run in self.trial_memory]), "All runs must be evaluated before proposing next weights"
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Proposing next turbo weights. Using device {device}")
         # Generate new sampling points    
-        initialization_weights = torch.tensor([run["free_weights"] for run in self.initialization_runs], dtype=self.dtype, device=device)
-        initialization_values = torch.tensor([run["value"] for run in self.initialization_runs], dtype=self.dtype, device=device).unsqueeze(-1)
-        curr_turbo_run_weights = torch.tensor([run["free_weights"] for run in self.current_turbo_run], dtype=self.dtype, device=device)
-        curr_turbo_run_values = torch.tensor([run["value"] for run in self.current_turbo_run], dtype=self.dtype, device=device).unsqueeze(-1)
-        X = torch.concatenate((initialization_weights, curr_turbo_run_weights), dim=0)
-        Y = torch.concatenate((initialization_values, curr_turbo_run_values), dim=0)
+        X = torch.tensor([run.weights for run in self.trial_memory], dtype=self.dtype, device=device)
+        Y = torch.tensor([run.value for run in self.trial_memory], dtype=self.dtype, device=device).unsqueeze(-1)
 
-         # generate inequality constrain, i.e. sum of free weights <= 1
+        # generate inequality constrain, i.e. sum of free weights <= 1
         # inequality_constraints (List[Tuple[Tensor, Tensor, float]] | None) – A list of tuples (indices, coefficients, rhs), with each tuple encoding an inequality constraint of the form sum_i (X[indices[i]] * coefficients[i]) >= rhs. indices and coefficients should be torch tensors.
         # as fom sum(X) <= 1 follows -sum(X) >= -1, the constraint takes the form
         constraint = (torch.arange(self.no_free_weights, device=device), -1* torch.ones(self.no_free_weights, dtype=self.dtype, device=device), -1.0)
@@ -271,73 +200,45 @@ class TurboWeightSelector(WeightSelectorInterface):
             )
 
         # Convert weights
-        
         next_free_weights = next_sample.squeeze().tolist()
         next_weights = self._convert_free_weights_to_pdf(next_free_weights)
 
-        # get last run and check whether everything is fine
-        next_trial_idx = self.completed_runs
-        
-        obj = {
-            "generation_strategy": "turbo",
-            "trial_idx": next_trial_idx,
-            "free_weights": next_free_weights,
-            "value": None
-        }
-        self.current_turbo_run.append(obj)
+        unit = TrialMemoryUnit(
+            trial_index=self.get_next_trial_idx(),
+            trial_type=TrialType.OPTIMIZATION,
+            weights=next_weights
+        )
+        self.trial_memory.append(unit)
 
-        return next_weights, {"generation_strategy": "turbo"}
+        return next_weights, TrialType.OPTIMIZATION
 
 
     def add_evaluation(self, perplexity, trial_index):
-        logger.info(f"Adding evaluation for trial {trial_index} with perplexity {perplexity}")
-        # check if trial index in initialization or turbo
-        for run in self.initialization_runs:
-            if run["trial_idx"] == trial_index:
-                self._add_evaluation_initialization(perplexity, trial_index)
-                return
+        super().add_evaluation(perplexity, trial_index)
         
-        for run in self.current_turbo_run:
-            if run["trial_idx"] == trial_index:
-                self._add_evaluation_turbo(perplexity, trial_index)
-                return
+        trial = self.trial_memory[-1]
+        if trial.trial_type == TrialType.OPTIMIZATION:
+            if self.state == None:
+                self.state = self._init_state()
+            
+            value_tensor = torch.tensor([trial.value], dtype=self.dtype)
+            self.state = update_state(self.state, value_tensor)
+
+    def _init_state(self):
+        initialization_trials_value = []
+        for trial in self.trial_memory:
+            if trial.trial_type == TrialType.INITIALIZATION:
+                initialization_trials_value.append(trial.value)
+            elif trial.trial_type == TrialType.OPTIMIZATION and trial.value is not None:
+                raise ValueError("Turbo initialization must be completed before first optimization trial is completed")
+            else:
+                raise ValueError("Unknown trial type")
         
-        raise ValueError("Trial index not found")
-
-    def _add_evaluation_initialization(self, perplexity, trial_index):
-        logger.info("Adding evaluation to latest initialization run")
-        value_inv = - perplexity
-        assert self.initialization_runs[-1]["trial_idx"] == trial_index, "Run index mismatch"
-        self.initialization_runs[-1]["value"] = value_inv
-        self.completed_runs += 1
-
-    def _add_evaluation_turbo(self, perplexity, trial_index):
-        logger.info("Adding evaluation to latest turbo run")
-        value_inv = - perplexity
-        value_tensor = torch.tensor([value_inv], dtype=self.dtype)
-        self.state = update_state(self.state, value_tensor) 
-        assert self.current_turbo_run[-1]["trial_idx"] == trial_index, "Run index mismatch"
-        self.current_turbo_run[-1]["value"] = value_inv
-        # Experiment tracking
-        if self.best_result is None or perplexity > self.best_result["value"]:
-            self.best_result = {
-                "trial_idx": trial_index,
-                "free_weights": self.current_turbo_run[-1]["free_weights"],
-                "value": perplexity
-            }
-        self.completed_runs += 1
+        best_value = max(initialization_trials_value)
+        logger.info(f"Initializing turbo state from best value {best_value}")
+        return TurboState(dim=self.no_free_weights, batch_size=self.batch_size, best_value=best_value)
 
 
-    def get_best_weights(self):
-        if self.best_result is None:
-            return None
-
-        best_weights = self.best_result["free_weights"]
-        return self._convert_free_weights_to_pdf(best_weights)
-
-    def _convert_free_weights_to_pdf(self, free_weights):
-        fixed_weight = 1 - sum(free_weights)
-        return [*free_weights, fixed_weight]
 
     def experiment_done(self):
         if self.state is None:

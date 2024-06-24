@@ -99,4 +99,8 @@ class WeightSelectorInterface:
         assert self.no_optimization_started() == self.no_optimization_completed(), "Inconsistent trial count. We can only have one trial running at one time"
         return len(self.trial_memory)
     
+    def _convert_free_weights_to_pdf(self, free_weights):
+        fixed_weight = 1 - sum(free_weights)
+        return [*free_weights, fixed_weight]
+    
     

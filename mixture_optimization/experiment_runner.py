@@ -288,7 +288,7 @@ class ExperimentRunner:
         params.append(("train-num-samples", per_episode_token_count))
         params.append(("dataset-manifest", trial.dataset))
         val_data_paths = [path for (_, path) in self.config.val_data]
-        val_data_keys = [open_lm_config['data_key'] for _ in self.config.val_data]
+        val_data_keys = [open_lm_config.data_key for _ in self.config.val_data]
         params.append(("val-data", val_data_paths))
         params.append(("val-data-key", val_data_keys))
         params.append(("logs-dir", log_dir_base_path))

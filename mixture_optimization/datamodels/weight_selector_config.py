@@ -18,6 +18,7 @@ class WeightSelectorConfig:
     no_initializations: int
     maximize: bool
     no_optimizations: Optional[int] = None
+    kwargs: dict = {}
 
 
 @frozen
