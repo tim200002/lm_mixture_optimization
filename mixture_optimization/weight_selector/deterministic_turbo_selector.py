@@ -8,8 +8,7 @@ import math
 from dataclasses import dataclass
 
 import torch
-from botorch.acquisition import qNoisyExpectedImprovement, PosteriorMean
-import warnings
+from botorch.acquisition import ExpectedImprovement, PosteriorMean
 from botorch.exceptions import BadInitialCandidatesWarning
 from botorch.fit import fit_gpytorch_mll
 from botorch.models import SingleTaskGP
@@ -24,7 +23,6 @@ from botorch.utils.sampling import sample_simplex
 from mixture_optimization.weight_selector.utils.botorch_constraints import get_unit_bounds
 
 logger = logging.getLogger("experiment_runner")
-
 
 @dataclass
 class TurboState:
@@ -73,32 +71,15 @@ def generate_sample(
     Y,  # Function values
     num_restarts=10,
     raw_samples=512,
-    inequality_constraints=None,
+   inequality_constraints=None,
+
 ):  
     # ToDo: Use posterior maximum since not noise free (indicated in paper)
     batch_size = 1 # only batch size 1 currentuly supported
     assert X.min() >= 0.0 and X.max() <= 1.0 and torch.all(torch.isfinite(Y))
 
-    #Find posterior mean to define center of trust region
-    warnings.filterwarnings("error", category=BadInitialCandidatesWarning)
-    try:
-        ei = PosteriorMean(model)
-        x_map, _ = optimize_acqf(
-            ei,
-            bounds=get_unit_bounds(X.shape[1]),
-            q=batch_size,
-            num_restarts=num_restarts,
-            raw_samples=raw_samples,
-            inequality_constraints=inequality_constraints,
-            return_best_only=True,
-        )
-        x_center = x_map
-    except BadInitialCandidatesWarning:
-        logger.info("Initializing turbo trust region center from posterior cannot be done, as posterior mean optimization failed. Using argmax of previous points instead")
-        x_center = X[Y.argmax(), :].clone()
-    warnings.resetwarnings()
-
     # Scale the TR to be proportional to the lengthscales
+    x_center = X[Y.argmax(), :].clone()
     weights = model.covar_module.base_kernel.lengthscale.squeeze().detach()
     weights = weights / weights.mean()
     weights = weights / torch.prod(weights.pow(1.0 / len(weights)))
@@ -109,7 +90,7 @@ def generate_sample(
     tr_lb = torch.max(tr_lb, torch.zeros_like(tr_lb))
     tr_ub = torch.min(tr_ub, torch.ones_like(tr_ub))
 
-    ei = qNoisyExpectedImprovement(model, X)
+    ei = ExpectedImprovement(model, Y.max())
     X_next, acq_value = optimize_acqf(
         ei,
         bounds=torch.stack([tr_lb, tr_ub]),
@@ -120,6 +101,8 @@ def generate_sample(
     )
 
     return X_next
+
+
 
 class TurboWeightSelector(WeightSelectorInterface):
 

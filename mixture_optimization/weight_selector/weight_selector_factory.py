@@ -1,22 +1,38 @@
+from typing import List, Optional, Tuple
+from mixture_optimization.datamodels.config import Config
+from mixture_optimization.datamodels.trial_tracking_config import Experiment, ExperimentConfig
+from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig, WeightSelectorType
 from mixture_optimization.weight_selector.weight_selector_interface import WeightSelectorInterface
 
 
-def weight_selector_factory(config) -> WeightSelectorInterface:
-    type = config["weight_selector"]['type']
-    if type == 'random':
-        from mixture_optimization.weight_selector.random_weight_selector import RandomWeightSelector
-        return RandomWeightSelector(config["weight_selector"], config["run_history"])
-    elif type == 'deterministic':
+def _weight_selector_factory(config: WeightSelectorConfig) -> WeightSelectorInterface:
+    """
+    Returns class instance based on the weight selector type
+    """
+    type = config.type
+       
+    if type == WeightSelectorType.DETERMINISTIC:
         from mixture_optimization.weight_selector.deterministic_weight_selector import DeterministicWeightSelector
-        return DeterministicWeightSelector(config["weight_selector"], config["run_history"])
-    elif type == 'bayesian':
+        cls = DeterministicWeightSelector
+    elif type == WeightSelectorType.BAYESIAN:
         from mixture_optimization.weight_selector.bayesian_selector import BayesianWeightSelector
-        return BayesianWeightSelector(config["weight_selector"], config["run_history"])
-    elif type == 'turbo':
+        cls = BayesianWeightSelector
+    elif type == WeightSelectorType.TURBO:
         from mixture_optimization.weight_selector.turbo_selector import TurboWeightSelector
-        return TurboWeightSelector(config["weight_selector"], config["run_history"])
-    elif type == 'hypersphere':
+        cls = TurboWeightSelector
+    elif type == WeightSelectorType.SIMPLEX:
         from mixture_optimization.weight_selector.simplex_selector import RandomSimplexSelector
-        return RandomSimplexSelector(config["weight_selector"])
+        cls = RandomSimplexSelector
     else:
         raise ValueError(f"Weight selector type {type} not recognized.")
+
+    return cls
+
+def weight_selector_from_scratch(weight_selector_config: WeightSelectorConfig, experiment_idx: int) -> Tuple[WeightSelectorInterface, ExperimentConfig]:
+    cls = _weight_selector_factory(weight_selector_config)
+    return cls.from_scratch(weight_selector_config, experiment_idx)
+
+def weight_selector_from_history(weight_selecor_config: WeightSelectorConfig, experiment:Experiment) -> WeightSelectorInterface:
+    cls = _weight_selector_factory(weight_selecor_config)
+    return cls.from_history(weight_selecor_config, experiment)
+    

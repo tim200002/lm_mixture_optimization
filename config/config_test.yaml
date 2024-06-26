@@ -6,15 +6,15 @@ val_weights: [0, 0, 1, 0, 0, 0, 0]
 workspace: /root/code/mixture_optimization/logs
 data_workspace: /media/ssd1/tim/data_workspace
 delete_dataset_after_run: False
+dataset_tag: "dolma_v1_6_small"
 
 experiment_manager_config:
   no_experiments: 1
   weight_selector_config:
-    type: "bayesian"
+    type: "simplex"
     no_weights: 7
-    no_initializations: 8
-    no_optimization: 12
-    bounds: None
+    no_initializations: 5
+    maximize: False
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # setup
