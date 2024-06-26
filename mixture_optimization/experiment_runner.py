@@ -248,8 +248,10 @@ class ExperimentRunner:
         
         # calc weighted perplexity on last run
         weighted_perplexity = 0
+        val_weights_normalized = [weight / sum(trial.weights) for weight in trial.weights]
+        assert sum(val_weights_normalized) - 1 < 1e-6, "Weights must sum to 1."
         for i, (domain_name, _) in enumerate(self.config.val_data):
-            weight = self.config.val_weights[i]
+            weight = val_weights_normalized[i]
             perplexity = all_results[-1][domain_name].perplexity
             weighted_perplexity += weight * perplexity
         trial.weighted_val_perplexity = weighted_perplexity
@@ -346,7 +348,7 @@ class ExperimentRunner:
             return None
         last_trial = latest_trials[-1]
         end_stage = TrialStatus.PARSED if not self.config.delete_dataset_after_run else TrialStatus.DELETED
-        if last_trial.status >= end_stage:
+        if last_trial.status.value >= end_stage.value:
             return None
         
         return (last_trial, last_trial.status)

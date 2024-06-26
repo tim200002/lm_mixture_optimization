@@ -4,6 +4,9 @@ from mixture_optimization.datamodels.trial_tracking_config import Experiment, Ex
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
 from attrs import define
 
+from mixture_optimization.weight_selector.utils.botorch_constraints import get_bounds_from_config
+import botorch.utils.transforms as bo_transforms
+
 @define
 class TrialMemoryUnit:
     trial_index: int
@@ -32,11 +35,14 @@ class WeightSelectorInterface:
         self.trial_memory[-1].value = value_optim
 
     def propose_next_weights(self) -> Tuple[List[float], TrialType]:
-        if self.no_initialization_runs < self.config.no_initializations:
+        assert self.no_initialization_started() == self.no_initialization_completed(), "Inconsistent trial count. We can only have one trial running at one time"
+        assert self.no_optimization_started() == self.no_optimization_completed(), "Inconsistent trial count. We can only have one trial running at one time"
+
+        if self.no_initialization_started() < self.config.no_initializations:
             assert self.no_optimization_started() == 0, "Optimization started before all initializations are done"
             return self._propose_next_weights_initialization()
         else:
-            assert self.no_initialization_completed == self.config.no_initializations, "Not all initializations are done"
+            assert self.no_initialization_completed() == self.config.no_initializations, "Not all initializations are done"
             return self._propose_next_weights_optimization()
     
     def _propose_next_weights_optimization(self):
@@ -48,7 +54,7 @@ class WeightSelectorInterface:
         """
         assert self.no_optimization_started() == 0, "Optimization started before all initializations are done"
         trial_idx = self.get_next_trial_idx()      
-        assert trial_idx < self.no_initialization_runs, "Too many initialization runs"
+        assert trial_idx == self.no_initialization_completed(), "Trial idx mismatch. Trial index must increase prev trial by 1"
         weights = self.experiment_config.initialization_weights[trial_idx]
 
         unit = TrialMemoryUnit(
@@ -82,14 +88,11 @@ class WeightSelectorInterface:
     def attach_trial(self, weights: List[float], trial_type: TrialType) -> None:
         if trial_type == TrialType.INITIALIZATION:
             assert self.no_initialization_started() < self.config.no_initializations, "Too many initializations started"
-            self.no_initialization_started += 1
         elif trial_type == TrialType.OPTIMIZATION:
             assert self.no_optimization_started() < self.config.no_optimizations, "Too many optimizations started"
             assert self.no_initialization_completed() == self.config.no_initializations, "Optimization started before all initializations are done"
-            self.no_optimization_started += 1
         
-        trial_idx = self.experiment_config.trial_offset + len(self.trial_memory) - 1 # first run is index 0
-        self.trial_memory.append(TrialMemoryUnit(trial_index=trial_idx, trial_type=trial_type, weights=weights))
+        self.trial_memory.append(TrialMemoryUnit(trial_index=self.get_next_trial_idx(), trial_type=trial_type, weights=weights))
 
     def no_initialization_started(self) -> int:
         no_initialization_started = 0
@@ -120,12 +123,30 @@ class WeightSelectorInterface:
         return no_optimization_completed
 
     def get_next_trial_idx(self) -> int:
-        assert self.no_initialization_started() == self.no_optimization_completed(), "Inconsistent trial count. We can only have one trial running at one time"
+        assert self.no_initialization_started() == self.no_initialization_completed(), "Inconsistent trial count. We can only have one trial running at one time"
         assert self.no_optimization_started() == self.no_optimization_completed(), "Inconsistent trial count. We can only have one trial running at one time"
         return len(self.trial_memory)
     
     def _convert_free_weights_to_pdf(self, free_weights):
         fixed_weight = 1 - sum(free_weights)
         return [*free_weights, fixed_weight]
+    
+
+    def _normalize(self, X):
+        # without specific bounds, constraints are from 0,1 does not require scaling
+        if self.config.bounds is None:
+            return X
+        
+        bounds = get_bounds_from_config(self.config.bounds)
+        return bo_transforms.normalize(X, bounds)
+    
+    def _unnormalize(self, X):
+        if self.config.bounds is None:
+            return X
+        
+        bounds = get_bounds_from_config(self.config.bounds)
+        return bo_transforms.unnormalize(X, bounds)
+
+        
     
     

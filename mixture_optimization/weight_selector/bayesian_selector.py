@@ -2,7 +2,7 @@ import logging
 from typing import Tuple
 
 import torch
-from botorch.acquisition import ExpectedImprovement
+from botorch.acquisition import qNoisyExpectedImprovement
 from botorch.fit import fit_gpytorch_mll
 from botorch.models import SingleTaskGP
 from botorch.optim import optimize_acqf
@@ -17,7 +17,7 @@ from mixture_optimization.datamodels.trial_tracking_config import (
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
 from mixture_optimization.weight_selector.utils.botorch_constraints import (
     create_probability_constraint_free_weights,
-    get_bounds,
+    get_unit_bounds,
 )
 from mixture_optimization.weight_selector.weight_selector_interface import (
     TrialMemoryUnit,
@@ -63,25 +63,24 @@ class BayesianWeightSelector(WeightSelectorInterface):
 
         # normalize Y
         Y = (Y - Y.mean()) / Y.std()
-        #! Normalizing X not necessary since anyways in [0,1]^d
+        X = self._normalize(X)
 
         model = SingleTaskGP(X, Y)
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
         fit_gpytorch_mll(mll)
 
-        best_value = max([run.value for run in self.trial_memory])
-        acqf = ExpectedImprovement(model=model, best_f=best_value)
-
+        acqf = qNoisyExpectedImprovement(model, X)
 
         next_weight, _ = optimize_acqf(
             acq_function=acqf,
-            bounds=get_bounds(self.no_free_weights),
+            bounds=get_unit_bounds(self.no_free_weights),
             inequality_constraints=constraints,
             q=self.batch_size,
             num_restarts = self.num_restarts,
             raw_samples = self.raw_samples,
         )
-
+        
+        next_weight = self._unnormalize(next_weight)
         weights = self._convert_free_weights_to_pdf(next_weight.squeeze().tolist())
 
         unit = TrialMemoryUnit(

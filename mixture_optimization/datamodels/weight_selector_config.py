@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional, Tuple
 from attrs import frozen
 from enum import Enum
 
@@ -17,6 +17,7 @@ class WeightSelectorConfig:
     no_weights: int
     no_initializations: int
     maximize: bool
+    bounds: Optional[List[Tuple[float, float] | None]] = None
     no_optimizations: Optional[int] = None
     kwargs: dict = {}
 

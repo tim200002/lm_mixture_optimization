@@ -34,5 +34,5 @@ def weight_selector_from_scratch(weight_selector_config: WeightSelectorConfig, e
 
 def weight_selector_from_history(weight_selecor_config: WeightSelectorConfig, experiment:Experiment) -> WeightSelectorInterface:
     cls = _weight_selector_factory(weight_selecor_config)
-    return cls.from_history(weight_selecor_config.experiment_manager_config.weight_selector_config, experiment)
+    return cls.from_history(weight_selecor_config, experiment)
     

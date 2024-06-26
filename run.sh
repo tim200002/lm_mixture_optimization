@@ -7,5 +7,5 @@ export PYTHONPATH="$PYTHONPATH:/root/code/mixture_optimization"
 
 cd /root/code/mixture_optimization
 #python -m mixture_optimization.main --config_path config/config_bayesian.yaml
-#python -m mixture_optimization.main --experiment-dir logs/turbo_0
-python -m mixture_optimization.main --config-path config/config_test.yaml
+python -m mixture_optimization.main --experiment-dir logs/turbo-new_3
+#python -m mixture_optimization.main --config-path config/config_turbo.yaml

@@ -7,11 +7,14 @@ workspace: /root/code/mixture_optimization/logs
 data_workspace: /media/ssd1/tim/data_workspace
 delete_dataset_after_run: False
 
-weight_selector:
-  type: "bayesian"
-  no_weights: 7
-  no_sobol: 5
-  no_bayesian: 10
+experiment_manager_config:
+  no_experiments: 1
+  weight_selector_config:
+    type: "bayesian"
+    no_weights: 7
+    no_initializations: 8
+    no_optimization: 12
+    bounds: None
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # setup
@@ -48,7 +51,7 @@ open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   fsdp: false
   fsdp_amp: false
   
-data_mixing:
+data_mixing_config:
   chunk_size: 2048
   shard_size: 2048
   oversample_factor: 1.5
