@@ -43,6 +43,7 @@ class BayesianWeightSelector(WeightSelectorInterface):
         
         self.batch_size = 1 # Right now no support for parallelization
         self.no_free_weights = config.no_weights - 1
+        self.dtype = torch.double
 
         self.num_restarts = 20
         self.raw_samples = 100
@@ -52,13 +53,13 @@ class BayesianWeightSelector(WeightSelectorInterface):
         # preliminary checks
         assert all([run.value is not None for run in self.trial_memory]), "All runs must be evaluated before proposing next weights"
         
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = "cpu"
         logger.info(f"Proposing next weights. Using device {device}")
         
         X = torch.tensor([run.weights[:-1] for run in self.trial_memory], dtype=torch.double, device=device) #! Only use free weights
         Y = torch.tensor([run.value for run in self.trial_memory], dtype=torch.double, device=device).unsqueeze(-1)
 
-        pdf_constraint = create_probability_constraint_free_weights(self.no_free_weights, self.dtype, device)
+        pdf_constraint = create_probability_constraint_free_weights(self.no_free_weights, self.dtype)
         constraints = [pdf_constraint]
 
         # normalize Y
@@ -73,7 +74,7 @@ class BayesianWeightSelector(WeightSelectorInterface):
 
         next_weight, _ = optimize_acqf(
             acq_function=acqf,
-            bounds=get_unit_bounds(self.no_free_weights),
+            bounds=get_unit_bounds(self.no_free_weights, dtype=self.dtype),
             inequality_constraints=constraints,
             q=self.batch_size,
             num_restarts = self.num_restarts,

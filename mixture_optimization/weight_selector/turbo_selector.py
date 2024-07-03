@@ -74,6 +74,7 @@ def generate_sample(
     num_restarts=10,
     raw_samples=512,
     inequality_constraints=None,
+    dtype=None,
 ):  
     # ToDo: Use posterior maximum since not noise free (indicated in paper)
     batch_size = 1 # only batch size 1 currentuly supported
@@ -85,18 +86,20 @@ def generate_sample(
         ei = PosteriorMean(model)
         x_map, _ = optimize_acqf(
             ei,
-            bounds=get_unit_bounds(X.shape[1]),
+            bounds=get_unit_bounds(X.shape[1], dtype=dtype),
             q=batch_size,
             num_restarts=num_restarts,
             raw_samples=raw_samples,
             inequality_constraints=inequality_constraints,
             return_best_only=True,
         )
-        x_center = x_map
+        x_center = x_map.squeeze(0)
     except BadInitialCandidatesWarning:
         logger.info("Initializing turbo trust region center from posterior cannot be done, as posterior mean optimization failed. Using argmax of previous points instead")
         x_center = X[Y.argmax(), :].clone()
     warnings.resetwarnings()
+
+    print(x_center)
 
     # Scale the TR to be proportional to the lengthscales
     weights = model.covar_module.base_kernel.lengthscale.squeeze().detach()
@@ -139,14 +142,13 @@ class TurboWeightSelector(WeightSelectorInterface):
 
         self.batch_size = 1 # right now we dont support parallel processing
         self.state = None
-        self.no_free_weights = self.config.no_weights - 1
+        self.no_free_weights = self.no_weights - 1
  
         # Some turbo hyperparameters
         self.num_restarts = 10
         self.raw_samples = 512
         self.dtype = torch.double
           
-
         # Tracking
         self.initialization_runs = [] # list of initialization runs, each dict with keys trial_idx, free_weights, value
         self.current_turbo_run = [] # list of dict with keys trial_idx, free_weights, value
@@ -154,18 +156,22 @@ class TurboWeightSelector(WeightSelectorInterface):
     
 
     def _propose_next_weights_optimization(self):
+        # when starting first experimen without history, guarantee set
+        if self.state is None:
+                self.state = self._init_state()
+
         # preliminary checks
         assert all([run.value is not None for run in self.trial_memory]), "All runs must be evaluated before proposing next weights"
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = "cpu"
         logger.info(f"Proposing next turbo weights. Using device {device}")
-        # Generate new sampling points    
+        # Generate new sampling points 
         X = torch.tensor([run.weights[:-1] for run in self.trial_memory], dtype=self.dtype, device=device) #! Only use free weights
         Y = torch.tensor([run.value for run in self.trial_memory], dtype=self.dtype, device=device).unsqueeze(-1)
 
         X = self._normalize(X)
 
-        pdf_constraint = create_probability_constraint_free_weights(self.no_free_weights, self.dtype, device)
+        pdf_constraint = create_probability_constraint_free_weights(self.no_free_weights, self.dtype)
         constraints = [pdf_constraint]
         
         train_y = (Y - Y.mean()) / Y.std()
@@ -195,6 +201,7 @@ class TurboWeightSelector(WeightSelectorInterface):
                 num_restarts=self.num_restarts,
                 raw_samples=self.raw_samples,
                 inequality_constraints=constraints,
+                dtype=self.dtype
             )
 
         # Convert weights
@@ -217,9 +224,11 @@ class TurboWeightSelector(WeightSelectorInterface):
         
         trial = self.trial_memory[-1]
         if trial.trial_type == TrialType.OPTIMIZATION:
+            # Resotring from history guarantee state set
             if self.state is None:
                 self.state = self._init_state()
             
+            logger.info(f"Update turbo state with value {trial.value}")
             value_tensor = torch.tensor([trial.value], dtype=self.dtype)
             self.state = update_state(self.state, value_tensor)
 
@@ -228,8 +237,9 @@ class TurboWeightSelector(WeightSelectorInterface):
         for trial in self.trial_memory:
             if trial.trial_type == TrialType.INITIALIZATION:
                 initialization_trials_value.append(trial.value)
-            elif trial.trial_type == TrialType.OPTIMIZATION and trial.value is not None:
-                raise ValueError("Turbo initialization must be completed before first optimization trial is completed")
+            # ToDo improve this / check this
+            elif trial.trial_type == TrialType.OPTIMIZATION:
+                pass
             else:
                 raise ValueError("Unknown trial type")
         

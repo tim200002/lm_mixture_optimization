@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 from mixture_optimization.datamodels.trial_tracking_config import Experiment, ExperimentConfig, TrialType
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
@@ -20,7 +20,8 @@ class WeightSelectorInterface:
     def __init__(self, config: WeightSelectorConfig, experiment_config: ExperimentConfig):
         self.config = config
         self.experiment_config = experiment_config
-        assert self.config.no_weights > 1, "Optimization requires at least 2 weights"
+        self.no_weights = self.config.no_weights
+        assert self.no_weights > 1, "Optimization requires at least 2 weights"
         self.trial_memory: List[TrialMemoryUnit] = []
 
     def setup(self, experiment_history: Optional[Experiment]) -> Tuple[bool, ExperimentConfig]:
@@ -77,7 +78,7 @@ class WeightSelectorInterface:
         return (best_weights, best_value_optim)
 
     def experiment_done(self) -> bool:
-        if self.config.no_optimizations == None:
+        if self.config.no_optimizations is None:
             raise ValueError("No optimization number specified, please override")
         
         assert self.no_initialization_completed() <= self.config.no_initializations, "Too many initializations started"
@@ -85,14 +86,17 @@ class WeightSelectorInterface:
 
         return (self.no_initialization_completed() == self.config.no_initializations) and (self.no_optimization_completed() == self.config.no_optimizations)
     
-    def attach_trial(self, weights: List[float], trial_type: TrialType) -> None:
+    def attach_trial(self, weights: Dict[str, float], trial_type: TrialType) -> None:
         if trial_type == TrialType.INITIALIZATION:
             assert self.no_initialization_started() < self.config.no_initializations, "Too many initializations started"
         elif trial_type == TrialType.OPTIMIZATION:
-            assert self.no_optimization_started() < self.config.no_optimizations, "Too many optimizations started"
+            if self.config.no_optimizations is not None:
+                assert self.no_optimization_started() < self.config.no_optimizations, "Too many optimizations started"
             assert self.no_initialization_completed() == self.config.no_initializations, "Optimization started before all initializations are done"
         
-        self.trial_memory.append(TrialMemoryUnit(trial_index=self.get_next_trial_idx(), trial_type=trial_type, weights=weights))
+        weights_values = list(weights.values())
+        
+        self.trial_memory.append(TrialMemoryUnit(trial_index=self.get_next_trial_idx(), trial_type=trial_type, weights=weights_values))
 
     def no_initialization_started(self) -> int:
         no_initialization_started = 0

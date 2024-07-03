@@ -58,15 +58,15 @@ class Trial:
         return workspace
 
     def get_perplexity_wandb(self):
-        assert self.status.value() >= TrialStatus.PARSED.value(), "Trial has not been parsed yet"
-        domain_performance = {domain: perplexity for domain, perplexity in self.val_results.items()}
+        assert self.status.value >= TrialStatus.PARSED.value, "Trial has not been parsed yet"
+        domain_performance = {domain: res.perplexity for domain, res in self.val_results.items()}
         return {
             "domain_perplexities": domain_performance,
             "weighted_val_perplexity": self.weighted_val_perplexity,
         }
 
     def get_mixing_weights_wandb(self):
-        assert self.status.value() >= TrialStatus.MIXED.value(), "Trial has not been mixed yet"
+        assert self.status.value >= TrialStatus.MIXED.value, "Trial has not been mixed yet"
         return {
             "mixing_weights": self.true_mixing_weights
         }
@@ -87,7 +87,7 @@ class Experiment:
         domain_names = []
         domain_weights = []
         for trial in self.trials:
-            if trial.status.value() < TrialStatus.MIXED.value():
+            if trial.status.value < TrialStatus.MIXED.value:
                 continue
             domain_names.append(list(trial.weights.keys()))
             domain_weights.append(list(trial.weights.values()))
@@ -105,7 +105,7 @@ class Experiment:
         domain_names = []
         perplexities = []
         for trial in self.trials:
-            if trial.status.value() < TrialStatus.PARSED.value():
+            if trial.status.value < TrialStatus.PARSED.value:
                 continue
             domain_names.append(list(trial.val_results.keys()) + ["weighted"])
             perplexities.append([domain_result.perplexity for domain_result in trial.val_results.values()] + [trial.weighted_val_perplexity])
@@ -113,15 +113,15 @@ class Experiment:
         # assert everyone is using same domains, i.e. equailty along columns
         for row, next_row in zip(domain_names[:-1], domain_names[1:]):
             assert row == next_row, "Domains are not same across trials"
-        
-        table = wandb.Table(data=perplexities, columns=domain_names)
+
+        table = wandb.Table(data=perplexities, columns=domain_names[0])
         return table
     
     def get_best_weights_and_perplexity(self):
         best_trial = None
         best_perplexity = float("inf")
         for trial in self.trials:
-            if trial.status.value() < TrialStatus.PARSED.value():
+            if trial.status.value < TrialStatus.PARSED.value:
                 continue
             if trial.weighted_val_perplexity < best_perplexity:
                 best_trial = trial

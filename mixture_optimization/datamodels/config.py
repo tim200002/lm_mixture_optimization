@@ -32,3 +32,4 @@ class Config:
     open_lm_config: OpenLMConfig
     data_mixing_config: DataMixingConfig
     id: Optional[str] = None
+    delete_run_after_run: bool = True

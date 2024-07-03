@@ -122,7 +122,7 @@ class TurboWeightSelector(WeightSelectorInterface):
 
         self.batch_size = 1 # right now we dont support parallel processing
         self.state = None
-        self.no_free_weights = self.config.no_weights - 1
+        self.no_free_weights = self.no_weights - 1
  
         # Some turbo hyperparameters
         self.num_restarts = 10

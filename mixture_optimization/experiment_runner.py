@@ -5,10 +5,14 @@ from mixture_optimization.datamodels.config import Config, LogConfig
 from mixture_optimization.datamodels.trial_tracking_config import Experiment, Trial, TrialStatus, ValResult
 from mixture_optimization.experiment_manager import ExperimentManager
 from mixture_optimization.utils.list_to_argv import list_to_argv
+from mixture_optimization.utils.memory_allocation import allocate_memory_on_gpu, deallocate_memory_on_gpu
+from mixture_optimization.utils.wandb import setup_wandb
 from mixture_optimization.utils.workspace_setup import get_experiment_dir, setup_logs
 from mixture_optimization.data_mixing.mix_tokenized_single_thread_2 import mix_tokenized_data
 from mixture_optimization.data_mixing.create_manifest import create_manifest
+import torch
 import datetime
+import coolname
 
 from open_lm.main import main as open_lm_main
 
@@ -41,6 +45,10 @@ class ExperimentRunner:
         elif len(self.experiment_history) > 0:
             self.experimemt_manager.parse_history(self.experiment_history)
         
+    @classmethod
+    def from_wandb():
+        # Todo imprlement downloading previous state from wandb create folder to continue, ...
+        raise NotImplementedError("Not implemented yet.")
 
     @classmethod
     def from_checkpoint(cls, experiment_dir: str):
@@ -53,12 +61,22 @@ class ExperimentRunner:
             obj = yaml.safe_load(config_path)
             config = cattrs.structure(obj, Config)
 
+        # When no id create new wand experiment
+        if config.id is None:
+            config.id = str(uuid.uuid4())
+            name = coolname.generate_slug(2)
+            setup_wandb(config, experiment_dir, name)
+        else:
+            setup_wandb(config, experiment_dir)
+
         with open(experiment_history_path, "r") as experiment_history_file:
             obj = yaml.safe_load(experiment_history_file)
             experiment_history = cattrs.structure(obj, List[Experiment])
         
         log_config = setup_logs(experiment_dir, exist_ok=True)
         instance = cls(config, experiment_history, log_config)
+        instance._save_config()
+
         return instance
 
     @classmethod
@@ -77,18 +95,8 @@ class ExperimentRunner:
         instance._save_config()
 
         # Setup wandb
-        config_dict = cattrs.unstructure(config)
-        val_weight_tag = "_".join([str(weight) for weight in config.val_weights])
-        wandb.init(
-            project="mixture_optimization",
-            id=config.id,
-            config=config_dict,
-            dir=experiment_dir,
-            save_code=False,
-            tags=[config.dataset_tag.value, val_weight_tag, config.name],
-            notes=config.description,
-            resume="allow",
-        )
+        name = coolname.generate_slug(2)
+        setup_wandb(config, experiment_dir, name)
         return instance
     
     def check_and_create_new_experiment(self):
@@ -144,6 +152,18 @@ class ExperimentRunner:
         return new_trial
 
     def mix_dataset(self, trial: Trial):
+
+        # iterate over all availabe gpus and block memory
+        # num_gpus = torch.cuda.device_count()
+        # memory_to_allocate_gb = 35
+        # allocated_tensors = []
+        # for device in range(num_gpus):
+        #     self.logger.info(f"Allocating memory on device {device}")
+        #     device_str = f"cuda:{device}"
+        #     tensor = allocate_memory_on_gpu(memory_to_allocate_gb, device=device_str)
+        #     allocated_tensors.append(tensor)
+
+
         assert trial.status == TrialStatus.INITIALIZED, "Run must be initialized before mixing dataset."
         if os.path.exists(trial.data_dir):
             self.logger.warning(f"Data directory {trial.data_dir} already exists. Deleting previous data to create new mixture.")
@@ -170,7 +190,7 @@ class ExperimentRunner:
 
         # Format to dict
         true_mixing_weights_dict = {}
-        for i, (domain_name, _) in enumerate(self.config.train_data):
+        for i, domain_name in enumerate(self.config.train_data.keys()):
             true_mixing_weights_dict[domain_name] = true_mixing_weights[i]
 
         trial.true_mixing_weights = true_mixing_weights_dict
@@ -185,8 +205,13 @@ class ExperimentRunner:
             "mixing_table": mixing_table
         })
         wandb.log({
-            f"exp_{i}": log_obj
+            f"exp_{trial.experiment_idx}": log_obj
         })
+
+        # deallocate memory
+        # for i, tensor in enumerate(allocated_tensors):
+        #     self.logger.info(f"Deallocating memory on device {i}")
+        #     deallocate_memory_on_gpu(tensor)
         
         return trial
     
@@ -297,16 +322,17 @@ class ExperimentRunner:
         
         # calc weighted perplexity on last run
         weighted_perplexity = 0
-        val_weights_normalized = [weight / sum(trial.weights) for weight in trial.weights]
+        val_weights_normalized = [weight / sum(self.config.val_weights) for weight in self.config.val_weights]
         assert sum(val_weights_normalized) - 1 < 1e-6, "Weights must sum to 1."
         for i, domain_name in enumerate(self.config.val_data.keys()):
             weight = val_weights_normalized[i]
             perplexity = trial.val_results[domain_name].perplexity
             weighted_perplexity += weight * perplexity
+        
         trial.weighted_val_perplexity = weighted_perplexity
         self.experimemt_manager.add_evaluation(weighted_perplexity, trial.idx)
         trial.status = TrialStatus.PARSED
-        self._save_experiment_history()
+        
 
         # Add logs to wandb
         experiment = self.experiment_history[trial.experiment_idx]
@@ -316,8 +342,15 @@ class ExperimentRunner:
             "perplexity_table": perplexity_table
         })
         wandb.log({
-            f"exp_{i}":log_obj
+            f"exp_{trial.experiment_idx}" :log_obj
         })
+
+        self._save_experiment_history()
+
+        if self.config.delete_run_after_run:
+            trial_workspace = trial.get_workspace(self.log_config)
+            self.logger.info(f"Deleting run workspace {trial_workspace}")
+            shutil.rmtree(trial_workspace)
 
         return trial
     
