@@ -12,12 +12,12 @@ def create_probability_constraint_free_weights(no_free_weights: int, dtype: torc
     return constraint
 
 
-def get_unit_bounds(no_weights, dtype=None):
-    return torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=dtype)
+def get_unit_bounds(no_weights):
+    return torch.tensor([[0.0] * no_weights, [1.0] * no_weights])
 
 
 def get_bounds_from_config(bounds):
-    lb = [0.0 if b is None else b[0] for b in bounds]
-    ub = [1.0 if b is None else b[1] for b in bounds]
+    lb = torch.tensor([0.0 if b is None else b[0] for b in bounds])
+    ub = torch.tensor([1.0 if b is None else b[1] for b in bounds])
 
-    return torch.tensor([[lb, ub]])
+    return torch.stack([lb, ub], dim=0)

@@ -1,23 +1,13 @@
-name: turbo-new-bounds
-description: "Turbo optimization with new framework and mixing weights"
+name: lin_interp_books_cc
+description: "Lin interpolation to find optimum mixign between two sources"
 train_data:
   Books: "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/train/2048-v1/0/manifest.jsonl"
-  C4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/c4/train/2048-v1/0/manifest.jsonl"
   CC: "/media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/train/2048-v1/0/manifest.jsonl"
-  Wiki: "/media/ssd1/tim/dolma_v1.6_small/tokenized/en_simple_wiki_v0/train/2048-v1/0/manifest.jsonl"
-  pes2o_v2: "/media/ssd1/tim/dolma_v1.6_small/tokenized/pes2o_v2/train/2048-v1/0/manifest.jsonl"
-  reddit: "/media/ssd1/tim/dolma_v1.6_small/tokenized/reddit-v5-dedupe-pii-nsfw-toxic/train/2048-v1/0/manifest.jsonl"
-  stack-v4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/stack-v4-train/train/2048-v1/0/manifest.jsonl"
-
+ 
 val_data:
   Books: "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/val/2048-v1/0/shard-0000000.tar"
-  C4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/c4/val/2048-v1/0/shard-0000000.tar"
   CC: "/media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/val/2048-v1/0/shard-0000000.tar"
-  Wiki: "/media/ssd1/tim/dolma_v1.6_small/tokenized/en_simple_wiki_v0/val/2048-v1/0/shard-0000000.tar"
-  pes2o_v2: "/media/ssd1/tim/dolma_v1.6_small/tokenized/pes2o_v2/val/2048-v1/0/shard-0000000.tar"
-  reddit: "/media/ssd1/tim/dolma_v1.6_small/tokenized/reddit-v5-dedupe-pii-nsfw-toxic/val/2048-v1/0/shard-0000000.tar"
-  stack-v4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/stack-v4-train/val/2048-v1/0/shard-0000000.tar"
-val_weights: [0, 1, 1, 0, 0, 0, 0]
+val_weights: [1,1]
 workspace: /root/code/mixture_optimization/logs
 data_workspace: /media/ssd1/tim/data_workspace
 delete_dataset_after_run: True
@@ -26,11 +16,10 @@ dataset_tag: "dolma_v1_6_small"
 experiment_manager_config:
   no_experiments: 1
   weight_selector_config:
-    type: "turbo"
-    no_weights: 7
+    type: "lin_interp"
+    no_weights: 2
     no_initializations: 8
     maximize: false
-    bounds: [[0, 0.2],[0.1, 0.4], [0.1, 0.5], [0, 0.2], [0, 0.2], [0, 0.2], [0, 0.2]]
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # setup

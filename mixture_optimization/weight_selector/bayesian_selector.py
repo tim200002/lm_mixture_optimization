@@ -17,6 +17,7 @@ from mixture_optimization.datamodels.trial_tracking_config import (
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
 from mixture_optimization.weight_selector.utils.botorch_constraints import (
     create_probability_constraint_free_weights,
+    get_bounds_from_config,
     get_unit_bounds,
 )
 from mixture_optimization.weight_selector.weight_selector_interface import (
@@ -64,7 +65,12 @@ class BayesianWeightSelector(WeightSelectorInterface):
 
         # normalize Y
         Y = (Y - Y.mean()) / Y.std()
-        X = self._normalize(X)
+
+        if self.config.normalize_bounds:
+            X = self._normalize(X)
+            bounds = get_unit_bounds(self.no_free_weights).to(self.dtype).to(device)
+        else:
+            bounds =  get_bounds_from_config(self.config.bounds).to(self.dtype).to(device)
 
         model = SingleTaskGP(X, Y)
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
@@ -74,16 +80,16 @@ class BayesianWeightSelector(WeightSelectorInterface):
 
         next_weight, _ = optimize_acqf(
             acq_function=acqf,
-            bounds=get_unit_bounds(self.no_free_weights, dtype=self.dtype),
+            bounds=bounds,
             inequality_constraints=constraints,
             q=self.batch_size,
             num_restarts = self.num_restarts,
             raw_samples = self.raw_samples,
         )
-        
-        next_weight = self._unnormalize(next_weight)
-        weights = self._convert_free_weights_to_pdf(next_weight.squeeze().tolist())
+        if self.config.normalize_bounds:
+            next_weight = self._unnormalize(next_weight)
 
+        weights = self._convert_free_weights_to_pdf(next_weight.squeeze().tolist())
         unit = TrialMemoryUnit(
             trial_index=self.get_next_trial_idx(),
             trial_type=TrialType.OPTIMIZATION,

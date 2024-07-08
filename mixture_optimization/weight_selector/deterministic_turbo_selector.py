@@ -20,7 +20,6 @@ from gpytorch.kernels import MaternKernel, ScaleKernel
 from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.utils.sampling import sample_simplex
-from mixture_optimization.weight_selector.utils.botorch_constraints import get_unit_bounds
 
 logger = logging.getLogger("experiment_runner")
 

@@ -1,11 +1,18 @@
+import logging
+import random
 from typing import List, Optional, Tuple, Dict
+
+import torch
 
 from mixture_optimization.datamodels.trial_tracking_config import Experiment, ExperimentConfig, TrialType
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
 from attrs import define
+from botorch.utils.sampling import sample_simplex, HitAndRunPolytopeSampler
 
 from mixture_optimization.weight_selector.utils.botorch_constraints import get_bounds_from_config
 import botorch.utils.transforms as bo_transforms
+
+logger = logging.getLogger("experiment_runner")
 
 @define
 class TrialMemoryUnit:
@@ -131,10 +138,47 @@ class WeightSelectorInterface:
         assert self.no_optimization_started() == self.no_optimization_completed(), "Inconsistent trial count. We can only have one trial running at one time"
         return len(self.trial_memory)
     
-    def _convert_free_weights_to_pdf(self, free_weights):
+    @classmethod
+    def _convert_free_weights_to_pdf(cls, free_weights):
         fixed_weight = 1 - sum(free_weights)
         return [*free_weights, fixed_weight]
     
+    @classmethod
+    def _convert_free_weights_to_pdf_tensor(cls, free_weights:torch.Tensor):
+        sums = free_weights.sum(dim=-1) # sum along rows
+        fixed_weight = 1 - sums
+        return torch.cat([free_weights, fixed_weight.unsqueeze(-1)], dim=-1)
+    
+    def _get_bounds_botorch(self):
+        if self.config.bounds is None:
+            return None
+        return get_bounds_from_config(self.config.bounds)
+    
+    @classmethod
+    def _sample_uniform(cls, no_samples: int, no_weights: int, bounds: Optional[List[Tuple[float, float]]] = None):
+        # ToDo, test uniform sampler
+        # when no bounds we can simply sample a simplex
+        if bounds is None:
+            logger.info("No bounds provided, sampling from simplex")
+            return sample_simplex(no_samples, no_weights, qmc=True)
+        
+        logger.info("Bounds provided, sampling from polytope")
+        assert len(bounds) == no_weights, "Bounds must be provided for all weights"
+        # inequality constraints, i.e. bounds
+        # I1 = torch.eye(no_weights)
+        # A = torch.cat([I1,-I1], dim=-1).view(-1, I1.shape[-1]) # fill all rows with patten [[1,0,0,...][-1,0,0,...][0,1,0,...][0,-1,0,...]...
+        # bounds_concat = [[bounds[1], - bounds[0]] for bounds in bounds]
+        # b = torch.tensor(bounds_concat).reshape(-1, 1)
+        lb = torch.tensor([0.0 if b is None else b[0] for b in bounds])
+        ub = torch.tensor([1.0 if b is None else b[1] for b in bounds])
+        bounds = torch.stack([lb, ub], dim=0)
+
+        # equality constraints, i.e. valid pdf
+        C = torch.ones(1, no_weights)
+        d = torch.ones(1, 1) 
+
+        sampler = HitAndRunPolytopeSampler(None, (C, d), bounds)
+        return sampler.draw(no_samples)
 
     def _normalize(self, X):
         # without specific bounds, constraints are from 0,1 does not require scaling

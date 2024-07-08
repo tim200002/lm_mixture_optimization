@@ -44,6 +44,7 @@ class ExperimentRunner:
             self.experiment_history.append(Experiment(exp_config))
         elif len(self.experiment_history) > 0:
             self.experimemt_manager.parse_history(self.experiment_history)
+        self._save_experiment_history()
         
     @classmethod
     def from_wandb():
@@ -90,13 +91,13 @@ class ExperimentRunner:
 
         # create workspace
         experiment_dir = get_experiment_dir(logs_dir, config.name)
-        log_config = setup_logs(experiment_dir)
-        instance = cls(config, [], log_config)
-        instance._save_config()
-
         # Setup wandb
         name = coolname.generate_slug(2)
         setup_wandb(config, experiment_dir, name)
+        
+        log_config = setup_logs(experiment_dir)
+        instance = cls(config, [], log_config)
+        instance._save_config()
         return instance
     
     def check_and_create_new_experiment(self):
@@ -298,7 +299,7 @@ class ExperimentRunner:
                 for i, domain_name in enumerate(self.config.val_data.keys()):
                     domain_result = epoch_val_results[i]
                     loss = domain_result["loss"]
-                    perplexity = math.exp(loss)
+                    perplexity = loss
                     eval_tokens = domain_result["tokens"]
                     train_tokens_seen = domain_result["train_tokens"]
                     loss_tokens_lower_95 = domain_result["loss_tokens_lower_95"]
