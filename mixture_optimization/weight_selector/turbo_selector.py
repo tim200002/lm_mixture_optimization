@@ -55,9 +55,11 @@ def update_state(state, Y_next):
     if state.success_counter == state.success_tolerance:  # Expand trust region
         state.length = min(2.0 * state.length, state.length_max)
         state.success_counter = 0
+        logger.info("Expanding trust region")
     elif state.failure_counter == state.failure_tolerance:  # Shrink trust region
         state.length /= 2.0
         state.failure_counter = 0
+        logger.info("Shrinking trust region")
 
     state.best_value = max(state.best_value, max(Y_next).item())
     if state.length < state.length_min:
@@ -84,7 +86,7 @@ def generate_sample(
         no_weights = X.shape[1]
         temp_bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=dtype)
     else:
-        temp_bounds = bounds
+        print("Bounds not None")
 
     ei = PosteriorMean(model)
     x_map, _ = optimize_acqf(
@@ -102,8 +104,15 @@ def generate_sample(
 
     # Scale the TR to be proportional to the lengthscales
     weights = model.covar_module.base_kernel.lengthscale.squeeze().detach()
-    weights = weights / weights.mean()
-    weights = weights / torch.prod(weights.pow(1.0 / len(weights)))
+    # print(f"Lengthscales: {weights}")
+    # print(f"Weights datatype {type(weights)}")
+    # print(f"Weights shape {weights.shape}")
+    # print(f"Weights numel {weights.numel()}")
+    
+    if weights.numel() > 1:
+        weights = weights / weights.mean()
+        weights = weights / torch.prod(weights.pow(1.0 / len(weights)))
+    
     tr_lb = torch.clamp(x_center - weights * state.length / 2.0, 0.0, 1.0)
     tr_ub = torch.clamp(x_center + weights * state.length / 2.0, 0.0, 1.0)
     turbo_bounds = torch.stack([tr_lb, tr_ub])
@@ -171,8 +180,10 @@ class TurboWeightSelector(WeightSelectorInterface):
         # Generate new sampling points 
         X = torch.tensor([run.weights[:-1] for run in self.trial_memory], dtype=self.dtype, device=device) #! Only use free weights
         Y = torch.tensor([run.value for run in self.trial_memory], dtype=self.dtype, device=device).unsqueeze(-1)
-
-        if self.config.normalize_bounds:
+        
+        if not self.config.bounds:
+            bounds = None
+        elif  self.config.normalize_bounds:
             X = self._normalize(X)
             bounds = None # parameter values constraint to [0,1]
         else:
@@ -213,10 +224,14 @@ class TurboWeightSelector(WeightSelectorInterface):
             )
 
         # Convert weights
-        if self.config.normalize_bounds:
+        if self.config.bounds and self.config.normalize_bounds:
             next_sample = self._unnormalize(next_sample)
-
-        next_free_weights = next_sample.squeeze().tolist()
+        next_free_weights = next_sample.squeeze()
+        
+        if next_free_weights.numel() > 1:
+            next_free_weights = next_free_weights.toList()
+        else:
+            next_free_weights = [next_free_weights.item()]
         next_weights = self._convert_free_weights_to_pdf(next_free_weights)
 
         unit = TrialMemoryUnit(

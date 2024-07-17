@@ -160,7 +160,7 @@ class WeightSelectorInterface:
         # when no bounds we can simply sample a simplex
         if bounds is None:
             logger.info("No bounds provided, sampling from simplex")
-            return sample_simplex(no_samples, no_weights, qmc=True)
+            return sample_simplex(no_weights, no_samples, qmc=True)
         
         logger.info("Bounds provided, sampling from polytope")
         assert len(bounds) == no_weights, "Bounds must be provided for all weights"

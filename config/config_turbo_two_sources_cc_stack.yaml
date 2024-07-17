@@ -1,11 +1,12 @@
-name: lin_interp_books_c4
-description: "Lin interpolation to find optimum mixign between two sources"
+name: turbo-two-sources-cc-stack
+description: "Turbo optimization only between two sources with new bounds"
 train_data:
-  Books: "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/train/2048-v1/0/manifest.jsonl"
-  C4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/c4/train/2048-v1/0/manifest.jsonl" 
+  stack-v4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/stack-v4-train/train/2048-v1/0/manifest.jsonl"
+  CC: "/media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/train/2048-v1/0/manifest.jsonl"
+ 
 val_data:
-  Books: "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/val/2048-v1/0/manifest.jsonl"
-  C4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/c4/val/2048-v1/0/shard-0000000.tar"
+  stack-v4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/stack-v4-train/val/2048-v1/0/manifest.jsonl"
+  CC: "/media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/val/2048-v1/0/shard-0000000.tar"
 val_weights: [1,1]
 
 workspace: /root/code/mixture_optimization/logs
@@ -16,9 +17,9 @@ dataset_tag: "dolma_v1_6_small"
 experiment_manager_config:
   no_experiments: 1
   weight_selector_config:
-    type: "lin_interp"
+    type: "turbo"
     no_weights: 2
-    no_initializations: 8
+    no_initializations: 4
     maximize: false
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...

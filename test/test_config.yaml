@@ -1,0 +1,7 @@
+
+weight_selector_config:
+  type: "bayesian"
+  no_weights: 2
+  no_initializations: 4
+  no_optimizations: 26
+  maximize: false

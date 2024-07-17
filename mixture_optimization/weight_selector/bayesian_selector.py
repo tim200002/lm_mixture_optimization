@@ -60,17 +60,22 @@ class BayesianWeightSelector(WeightSelectorInterface):
         X = torch.tensor([run.weights[:-1] for run in self.trial_memory], dtype=torch.double, device=device) #! Only use free weights
         Y = torch.tensor([run.value for run in self.trial_memory], dtype=torch.double, device=device).unsqueeze(-1)
 
+        if not self.config.bounds:
+            no_weights = X.shape[1]
+            bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=self.dtype)
+        elif  self.config.normalize_bounds:
+            no_weights = X.shape[1]
+            X = self._normalize(X)
+            bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=self.dtype)
+        else:
+            bounds = get_bounds_from_config(self.config.bounds).to(self.dtype).to(device)
+
         pdf_constraint = create_probability_constraint_free_weights(self.no_free_weights, self.dtype)
         constraints = [pdf_constraint]
 
         # normalize Y
         Y = (Y - Y.mean()) / Y.std()
 
-        if self.config.normalize_bounds:
-            X = self._normalize(X)
-            bounds = get_unit_bounds(self.no_free_weights).to(self.dtype).to(device)
-        else:
-            bounds =  get_bounds_from_config(self.config.bounds).to(self.dtype).to(device)
 
         model = SingleTaskGP(X, Y)
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
@@ -86,10 +91,17 @@ class BayesianWeightSelector(WeightSelectorInterface):
             num_restarts = self.num_restarts,
             raw_samples = self.raw_samples,
         )
-        if self.config.normalize_bounds:
-            next_weight = self._unnormalize(next_weight)
 
-        weights = self._convert_free_weights_to_pdf(next_weight.squeeze().tolist())
+        if self.config.bounds and self.config.normalize_bounds:
+            next_weight = self._unnormalize(next_weight)
+        
+        next_weight = next_weight.squeeze()
+        if next_weight.numel() > 1:
+            next_weight = next_weight.tolist()
+        else:
+            next_weight = [next_weight.item()]
+
+        weights = self._convert_free_weights_to_pdf(next_weight)
         unit = TrialMemoryUnit(
             trial_index=self.get_next_trial_idx(),
             trial_type=TrialType.OPTIMIZATION,
