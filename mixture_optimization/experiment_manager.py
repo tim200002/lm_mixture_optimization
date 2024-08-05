@@ -39,10 +39,6 @@ class ExperimentManager:
             self.weight_selector.attach_trial(trial.weights, trial.type)
             if trial.weighted_val_perplexity:
                 self.weight_selector.add_evaluation(trial.weighted_val_perplexity, trial.idx)
-
-
-    def get_best_weights(self) -> Tuple[List[float], float]:
-        return self.weight_selector.get_best_weights()
     
     def add_evaluation(self, perplexity: float, trial_index: int):
         return self.weight_selector.add_evaluation(perplexity, trial_index)

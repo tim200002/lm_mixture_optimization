@@ -1,5 +1,5 @@
 from attrs import define, frozen
-from typing import Tuple, List, Optional
+from typing import Dict, Optional, Tuple, List
 from enum import Enum, unique
 
 from mixture_optimization.datamodels.data_mixing_config import DataMixingConfig
@@ -12,24 +12,24 @@ class DatasetTag(Enum):
     DOLMA_V1_6_SMALL = "dolma_v1_6_small"
 
 @frozen
-class ExperimentTrackingConfig:
+class LogConfig:
     log_path: str
     runs_folder: str
     config_path: str
+    experiment_history_path: str
 
 @define
 class Config:
     name: str
     description: str
-    train_data: List[Tuple[str, str]]
-    val_data: List[Tuple[str, str]]
+    train_data: Dict[str, str]
+    val_data: Dict[str, str]
     val_weights: List[float]
-    workspace: str
     data_workspace: str
     delete_dataset_after_run: bool
     dataset_tag: DatasetTag
     experiment_manager_config: ExperimentManagerConfig
     open_lm_config: OpenLMConfig
     data_mixing_config: DataMixingConfig
-    experiment_history: List[Experiment] = []
-    experiment_tracking_config: Optional[ExperimentTrackingConfig] = None
+    id: Optional[str] = None
+    delete_run_after_run: bool = True

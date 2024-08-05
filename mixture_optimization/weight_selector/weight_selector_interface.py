@@ -1,11 +1,18 @@
-from typing import List, Optional, Tuple
+import logging
+import random
+from typing import List, Optional, Tuple, Dict
+
+import torch
 
 from mixture_optimization.datamodels.trial_tracking_config import Experiment, ExperimentConfig, TrialType
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
 from attrs import define
+from botorch.utils.sampling import sample_simplex, HitAndRunPolytopeSampler
 
 from mixture_optimization.weight_selector.utils.botorch_constraints import get_bounds_from_config
 import botorch.utils.transforms as bo_transforms
+
+logger = logging.getLogger("experiment_runner")
 
 @define
 class TrialMemoryUnit:
@@ -20,7 +27,8 @@ class WeightSelectorInterface:
     def __init__(self, config: WeightSelectorConfig, experiment_config: ExperimentConfig):
         self.config = config
         self.experiment_config = experiment_config
-        assert self.config.no_weights > 1, "Optimization requires at least 2 weights"
+        self.no_weights = self.config.no_weights
+        assert self.no_weights > 1, "Optimization requires at least 2 weights"
         self.trial_memory: List[TrialMemoryUnit] = []
 
     def setup(self, experiment_history: Optional[Experiment]) -> Tuple[bool, ExperimentConfig]:
@@ -77,7 +85,7 @@ class WeightSelectorInterface:
         return (best_weights, best_value_optim)
 
     def experiment_done(self) -> bool:
-        if self.config.no_optimizations == None:
+        if self.config.no_optimizations is None:
             raise ValueError("No optimization number specified, please override")
         
         assert self.no_initialization_completed() <= self.config.no_initializations, "Too many initializations started"
@@ -85,14 +93,17 @@ class WeightSelectorInterface:
 
         return (self.no_initialization_completed() == self.config.no_initializations) and (self.no_optimization_completed() == self.config.no_optimizations)
     
-    def attach_trial(self, weights: List[float], trial_type: TrialType) -> None:
+    def attach_trial(self, weights: Dict[str, float], trial_type: TrialType) -> None:
         if trial_type == TrialType.INITIALIZATION:
             assert self.no_initialization_started() < self.config.no_initializations, "Too many initializations started"
         elif trial_type == TrialType.OPTIMIZATION:
-            assert self.no_optimization_started() < self.config.no_optimizations, "Too many optimizations started"
+            if self.config.no_optimizations is not None:
+                assert self.no_optimization_started() < self.config.no_optimizations, "Too many optimizations started"
             assert self.no_initialization_completed() == self.config.no_initializations, "Optimization started before all initializations are done"
         
-        self.trial_memory.append(TrialMemoryUnit(trial_index=self.get_next_trial_idx(), trial_type=trial_type, weights=weights))
+        weights_values = list(weights.values())
+        
+        self.trial_memory.append(TrialMemoryUnit(trial_index=self.get_next_trial_idx(), trial_type=trial_type, weights=weights_values))
 
     def no_initialization_started(self) -> int:
         no_initialization_started = 0
@@ -127,10 +138,52 @@ class WeightSelectorInterface:
         assert self.no_optimization_started() == self.no_optimization_completed(), "Inconsistent trial count. We can only have one trial running at one time"
         return len(self.trial_memory)
     
-    def _convert_free_weights_to_pdf(self, free_weights):
+    @classmethod
+    def _convert_free_weights_to_pdf(cls, free_weights):
         fixed_weight = 1 - sum(free_weights)
+        eps = 1e-6
+        assert fixed_weight >= -eps, f"Fixed weight must be positive, got {fixed_weight}"
+        if fixed_weight < 0:
+            logger.warning(f"Fixed weight is negative of value {fixed_weight}. Setting to 0.")
+            fixed_weight = 0
         return [*free_weights, fixed_weight]
     
+    @classmethod
+    def _convert_free_weights_to_pdf_tensor(cls, free_weights:torch.Tensor):
+        sums = free_weights.sum(dim=-1) # sum along rows
+        fixed_weight = 1 - sums
+        return torch.cat([free_weights, fixed_weight.unsqueeze(-1)], dim=-1)
+    
+    def _get_bounds_botorch(self):
+        if self.config.bounds is None:
+            return None
+        return get_bounds_from_config(self.config.bounds)
+    
+    @classmethod
+    def _sample_uniform(cls, no_samples: int, no_weights: int, bounds: Optional[List[Tuple[float, float]]] = None):
+        # ToDo, test uniform sampler
+        # when no bounds we can simply sample a simplex
+        if bounds is None:
+            logger.info("No bounds provided, sampling from simplex")
+            return sample_simplex(no_weights, no_samples, qmc=True)
+        
+        logger.info("Bounds provided, sampling from polytope")
+        assert len(bounds) == no_weights, "Bounds must be provided for all weights"
+        # inequality constraints, i.e. bounds
+        # I1 = torch.eye(no_weights)
+        # A = torch.cat([I1,-I1], dim=-1).view(-1, I1.shape[-1]) # fill all rows with patten [[1,0,0,...][-1,0,0,...][0,1,0,...][0,-1,0,...]...
+        # bounds_concat = [[bounds[1], - bounds[0]] for bounds in bounds]
+        # b = torch.tensor(bounds_concat).reshape(-1, 1)
+        lb = torch.tensor([0.0 if b is None else b[0] for b in bounds])
+        ub = torch.tensor([1.0 if b is None else b[1] for b in bounds])
+        bounds = torch.stack([lb, ub], dim=0)
+
+        # equality constraints, i.e. valid pdf
+        C = torch.ones(1, no_weights)
+        d = torch.ones(1, 1) 
+
+        sampler = HitAndRunPolytopeSampler(None, (C, d), bounds)
+        return sampler.draw(no_samples)
 
     def _normalize(self, X):
         # without specific bounds, constraints are from 0,1 does not require scaling

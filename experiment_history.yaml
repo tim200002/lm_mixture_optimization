@@ -1,0 +1,588 @@
+- config:
+    experiment_idx: 0
+    initialization_weights:
+    - - Books
+      - CC
+      - stack-v4
+    - - Books
+      - CC
+      - stack-v4
+    - - Books
+      - CC
+      - stack-v4
+    - - Books
+      - CC
+      - stack-v4
+    - - Books
+      - CC
+      - stack-v4
+    - - Books
+      - CC
+      - stack-v4
+    - - Books
+      - CC
+      - stack-v4
+    - - Books
+      - CC
+      - stack-v4
+  trials:
+  - all_results:
+    - Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.452996492385864
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.452996492385864
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.860178828239441
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.860178828239441
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 2.9310052692890167
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 2.9310052692890167
+        train_tokens_seen: 499998720
+    data_dir: /media/ssd1/tim/data_workspace/2024-07-17_11-08-00
+    dataset: null
+    experiment_idx: 0
+    idx: 1
+    kwargs: {}
+    mixing_log_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_1/mixing.log
+    name: exp_0_trial_1
+    open_lm_log_dir: logs/uniform_books_cc_stack_0/runs/exp_0_trial_1/open_lm
+    status: 7
+    true_mixing_weights:
+      Books: 0.2234930288474615
+      CC: 0.3491043306551197
+      stack-v4: 0.4274026404974188
+    type: 1
+    val_file_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_1/open_lm/checkpoints/results.jsonl
+    val_results:
+      Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.452996492385864
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.452996492385864
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.860178828239441
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.860178828239441
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 2.9310052692890167
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 2.9310052692890167
+        train_tokens_seen: 499998720
+    weighted_val_perplexity: 4.08139352997144
+    weights:
+      Books: 0.22378532588481903
+      CC: 0.3488965630531311
+      stack-v4: 0.42731809616088867
+  - all_results:
+    - Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.6948369443416595
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.6948369443416595
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.838506072759628
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.838506072759628
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 2.7605324536561966
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 2.7605324536561966
+        train_tokens_seen: 499998720
+    data_dir: /media/ssd1/tim/data_workspace/2024-07-18_22-53-17
+    dataset: null
+    experiment_idx: 0
+    idx: 18
+    kwargs: {}
+    mixing_log_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_18/mixing.log
+    name: exp_0_trial_18
+    open_lm_log_dir: logs/uniform_books_cc_stack_0/runs/exp_0_trial_18/open_lm
+    status: 7
+    true_mixing_weights:
+      Books: 0.07861382045270333
+      CC: 0.4080558562577178
+      stack-v4: 0.513330323289579
+    type: 1
+    val_file_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_18/open_lm/checkpoints/results.jsonl
+    val_results:
+      Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.6948369443416595
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.6948369443416595
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.838506072759628
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.838506072759628
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 2.7605324536561966
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 2.7605324536561966
+        train_tokens_seen: 499998720
+    weighted_val_perplexity: 4.097958490252495
+    weights:
+      Books: 0.07914165407419205
+      CC: 0.4077531397342682
+      stack-v4: 0.5131052136421204
+  - all_results:
+    - Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.518855005502701
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.518855005502701
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.823936194181442
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.823936194181442
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 2.875306859612465
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 2.875306859612465
+        train_tokens_seen: 499998720
+    data_dir: /media/ssd1/tim/data_workspace/2024-07-17_08-46-49
+    dataset: null
+    experiment_idx: 0
+    idx: 0
+    kwargs: {}
+    mixing_log_path: ./logs/uniform_books_cc_stack_0/runs/exp_0_trial_0/mixing.log
+    name: exp_0_trial_0
+    open_lm_log_dir: ./logs/uniform_books_cc_stack_0/runs/exp_0_trial_0/open_lm
+    status: 7
+    true_mixing_weights:
+      Books: 0.16701209826577018
+      CC: 0.39617740496551124
+      stack-v4: 0.4368104967687186
+    type: 1
+    val_file_path: ./logs/uniform_books_cc_stack_0/runs/exp_0_trial_0/open_lm/checkpoints/results.jsonl
+    val_results:
+      Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.518855005502701
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.518855005502701
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.823936194181442
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.823936194181442
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 2.875306859612465
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 2.875306859612465
+        train_tokens_seen: 499998720
+    weighted_val_perplexity: 4.072699353098869
+    weights:
+      Books: 0.16739578545093536
+      CC: 0.39589256048202515
+      stack-v4: 0.4367116689682007
+  - all_results:
+    - Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.178951054811478
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.178951054811478
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.734047114849091
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.734047114849091
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 4.681728333234787
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.681728333234787
+        train_tokens_seen: 499998720
+    data_dir: /media/ssd1/tim/data_workspace/2024-07-18_16-35-14
+    dataset: null
+    experiment_idx: 0
+    idx: 15
+    kwargs: {}
+    mixing_log_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_15/mixing.log
+    name: exp_0_trial_15
+    open_lm_log_dir: logs/uniform_books_cc_stack_0/runs/exp_0_trial_15/open_lm
+    status: 7
+    true_mixing_weights:
+      Books: 0.5226990227357415
+      CC: 0.41872767972496255
+      stack-v4: 0.058573297539295924
+    type: 1
+    val_file_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_15/open_lm/checkpoints/results.jsonl
+    val_results:
+      Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.178951054811478
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.178951054811478
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.734047114849091
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.734047114849091
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 4.681728333234787
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.681728333234787
+        train_tokens_seen: 499998720
+    weighted_val_perplexity: 4.531575500965118
+    weights:
+      Books: 0.5225032567977905
+      CC: 0.41840726137161255
+      stack-v4: 0.059089481830596924
+  - all_results:
+    - Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.167712435126305
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.167712435126305
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 5.01941105723381
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 5.01941105723381
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 3.966430649161339
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 3.966430649161339
+        train_tokens_seen: 499998720
+    data_dir: /media/ssd1/tim/data_workspace/2024-07-19_00-59-46
+    dataset: null
+    experiment_idx: 0
+    idx: 19
+    kwargs: {}
+    mixing_log_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_19/mixing.log
+    name: exp_0_trial_19
+    open_lm_log_dir: logs/uniform_books_cc_stack_0/runs/exp_0_trial_19/open_lm
+    status: 7
+    true_mixing_weights:
+      Books: 0.6723703214119605
+      CC: 0.16341501228040115
+      stack-v4: 0.16421466630763834
+    type: 1
+    val_file_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_19/open_lm/checkpoints/results.jsonl
+    val_results:
+      Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.167712435126305
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.167712435126305
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 5.01941105723381
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 5.01941105723381
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 3.966430649161339
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 3.966430649161339
+        train_tokens_seen: 499998720
+    weighted_val_perplexity: 4.384518047173818
+    weights:
+      Books: 0.6719295978546143
+      CC: 0.16351139545440674
+      stack-v4: 0.164559006690979
+  - all_results:
+    - Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.149822860956192
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.149822860956192
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 5.394585818052292
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 5.394585818052292
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 3.510323941707611
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 3.510323941707611
+        train_tokens_seen: 499998720
+    data_dir: /media/ssd1/tim/data_workspace/2024-07-17_15-22-17
+    dataset: null
+    experiment_idx: 0
+    idx: 3
+    kwargs: {}
+    mixing_log_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_3/mixing.log
+    name: exp_0_trial_3
+    open_lm_log_dir: logs/uniform_books_cc_stack_0/runs/exp_0_trial_3/open_lm
+    status: 7
+    true_mixing_weights:
+      Books: 0.7642727752422088
+      CC: 0.02448471133499067
+      stack-v4: 0.21124251342280054
+    type: 1
+    val_file_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_3/open_lm/checkpoints/results.jsonl
+    val_results:
+      Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.149822860956192
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.149822860956192
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 5.394585818052292
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 5.394585818052292
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 3.510323941707611
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 3.510323941707611
+        train_tokens_seen: 499998720
+    weighted_val_perplexity: 4.351577540238698
+    weights:
+      Books: 0.7636815905570984
+      CC: 0.02480769157409668
+      stack-v4: 0.21151071786880493
+  - all_results:
+    - Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.266830265522003
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.266830265522003
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.603079915046692
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.603079915046692
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 5.362987726926804
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 5.362987726926804
+        train_tokens_seen: 499998720
+    data_dir: /media/ssd1/tim/data_workspace/2024-07-17_17-28-28
+    dataset: null
+    experiment_idx: 0
+    idx: 4
+    kwargs: {}
+    mixing_log_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_4/mixing.log
+    name: exp_0_trial_4
+    open_lm_log_dir: logs/uniform_books_cc_stack_0/runs/exp_0_trial_4/open_lm
+    status: 7
+    true_mixing_weights:
+      Books: 0.3305943822944631
+      CC: 0.6456118305277445
+      stack-v4: 0.023793787177792465
+    type: 1
+    val_file_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_4/open_lm/checkpoints/results.jsonl
+    val_results:
+      Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.266830265522003
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.266830265522003
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.603079915046692
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.603079915046692
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 5.362987726926804
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 5.362987726926804
+        train_tokens_seen: 499998720
+    weighted_val_perplexity: 4.744299302498499
+    weights:
+      Books: 0.33071088790893555
+      CC: 0.6449214220046997
+      stack-v4: 0.024367690086364746
+  - all_results:
+    - Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.285305142402649
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.285305142402649
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.866121709346771
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.866121709346771
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 3.2477868050336838
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 3.2477868050336838
+        train_tokens_seen: 499998720
+    data_dir: /media/ssd1/tim/data_workspace/2024-07-18_01-52-43
+    dataset: null
+    experiment_idx: 0
+    idx: 8
+    kwargs: {}
+    mixing_log_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_8/mixing.log
+    name: exp_0_trial_8
+    open_lm_log_dir: logs/uniform_books_cc_stack_0/runs/exp_0_trial_8/open_lm
+    status: 7
+    true_mixing_weights:
+      Books: 0.4061083942141882
+      CC: 0.304413340658982
+      stack-v4: 0.28947826512682984
+    type: 1
+    val_file_path: logs/uniform_books_cc_stack_0/runs/exp_0_trial_8/open_lm/checkpoints/results.jsonl
+    val_results:
+      Books:
+        domain: Books
+        eval_tokens: 262144
+        loss: 4.285305142402649
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.285305142402649
+        train_tokens_seen: 499998720
+      CC:
+        domain: CC
+        eval_tokens: 262144
+        loss: 4.866121709346771
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 4.866121709346771
+        train_tokens_seen: 499998720
+      stack-v4:
+        domain: stack-v4
+        eval_tokens: 262144
+        loss: 3.2477868050336838
+        loss_tokens_lower_95: -1.0
+        loss_tokens_upper_95: -1.0
+        perplexity: 3.2477868050336838
+        train_tokens_seen: 499998720
+    weighted_val_perplexity: 4.133071218927701
+    weights:
+      Books: 0.4061027467250824
+      CC: 0.30427977442741394
+      stack-v4: 0.28961747884750366

@@ -1,12 +1,18 @@
 import math
 from typing import Dict, List, Optional
-from mixture_optimization.datamodels.config import Config
+import uuid
+from mixture_optimization.datamodels.config import Config, LogConfig
 from mixture_optimization.datamodels.trial_tracking_config import Experiment, Trial, TrialStatus, ValResult
 from mixture_optimization.experiment_manager import ExperimentManager
 from mixture_optimization.utils.list_to_argv import list_to_argv
-from mixture_optimization.utils.workspace_setup import setup_workspace
+from mixture_optimization.utils.memory_allocation import allocate_memory_on_gpu, deallocate_memory_on_gpu
+from mixture_optimization.utils.wandb import setup_wandb
+from mixture_optimization.utils.workspace_setup import get_experiment_dir, setup_logs
 from mixture_optimization.data_mixing.mix_tokenized_single_thread_2 import mix_tokenized_data
 from mixture_optimization.data_mixing.create_manifest import create_manifest
+import torch
+import datetime
+import coolname
 
 from open_lm.main import main as open_lm_main
 
@@ -17,59 +23,89 @@ import shutil
 import sys
 import json
 import cattrs
+import wandb
 
 class ExperimentRunner:
     
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, experiment_history: List[Experiment], log_config: LogConfig):
         self.config = config
+        self.experiment_history = experiment_history
+        self.log_config = log_config
+
         self.logger = logging.getLogger("experiment_runner")
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
-        self.logger.addHandler(logging.FileHandler(config.experiment_tracking_config.log_path))
-
+        self.logger.addHandler(logging.FileHandler(self.log_config.log_path))
+        
         # Initialize experiment manager
         self.experimemt_manager = ExperimentManager(config.experiment_manager_config)
-        if len(config.experiment_history) == 0:
+        if len(self.experiment_history) == 0:
             exp_config = self.experimemt_manager.create_next_experiment()
-            config.experiment_history.append(Experiment(exp_config))
-        elif len(config.experiment_history) > 0:
-            self.experimemt_manager.parse_history(config.experiment_history)
+            self.experiment_history.append(Experiment(exp_config))
+        elif len(self.experiment_history) > 0:
+            self.experimemt_manager.parse_history(self.experiment_history)
+        self._save_experiment_history()
         
-        self._save_config() # weight selector potentially adds info to config
-        
+    @classmethod
+    def from_wandb():
+        # Todo imprlement downloading previous state from wandb create folder to continue, ...
+        raise NotImplementedError("Not implemented yet.")
 
     @classmethod
     def from_checkpoint(cls, experiment_dir: str):
         assert os.path.exists(experiment_dir), f"Experiment directory {experiment_dir} does not exist."
         config_path = os.path.join(experiment_dir, "config.yaml")
         assert os.path.exists(config_path), f"Config file {config_path} does not exist."
+        experiment_history_path = os.path.join(experiment_dir, "experiment_history.yaml")
+        assert os.path.exists(experiment_history_path), f"Experiment history file {experiment_history_path} does not exist."
         with open(config_path, "r") as config_path:
             obj = yaml.safe_load(config_path)
             config = cattrs.structure(obj, Config)
+
+        # When no id create new wand experiment
+        if config.id is None:
+            config.id = str(uuid.uuid4())
+            name = coolname.generate_slug(2)
+            setup_wandb(config, experiment_dir, name)
+        else:
+            setup_wandb(config, experiment_dir)
+
+        with open(experiment_history_path, "r") as experiment_history_file:
+            obj = yaml.safe_load(experiment_history_file)
+            experiment_history = cattrs.structure(obj, List[Experiment])
         
-        instance = cls(config)
+        log_config = setup_logs(experiment_dir, exist_ok=True)
+        instance = cls(config, experiment_history, log_config)
+        instance._save_config()
+
         return instance
 
     @classmethod
-    def from_scratch(cls, config_path: str):
+    def from_scratch(cls, config_path: str, logs_dir: str):
         assert os.path.exists(config_path), f"Config file {config_path} does not exist."
         with open(config_path, "r") as config_path:
             obj = yaml.safe_load(config_path)
             config = cattrs.structure(obj, Config)
 
-        # create workspace
-        config = setup_workspace(config)
-        instance = cls(config)
-        instance._save_config()
+        config.id = str(uuid.uuid4())
 
+        # create workspace
+        experiment_dir = get_experiment_dir(logs_dir, config.name)
+        # Setup wandb
+        name = coolname.generate_slug(2)
+        setup_wandb(config, experiment_dir, name)
+        
+        log_config = setup_logs(experiment_dir)
+        instance = cls(config, [], log_config)
+        instance._save_config()
         return instance
     
     def check_and_create_new_experiment(self):
         if self.experimemt_manager.check_experiment_done():
             self.logger.info("Experiment done. Creating new experiment.")
             exp_config = self.experimemt_manager.create_next_experiment()
-            self.config.experiment_history.append(Experiment(exp_config))
-            self._save_config()
+            self.experiment_history.append(Experiment(exp_config))
+            self._save_experiment_history()
 
     
     def initialize_new_trial(self, trial: Optional[Trial]) -> Trial:
@@ -81,51 +117,69 @@ class ExperimentRunner:
         # trial_idx = sum([len(experiment.trials) for experiment in self.config.experiment_history])
         experiment_idx = self.experimemt_manager.get_experiment_idx()
         trial_idx = self.experimemt_manager.get_next_trial_idx()
-        other_run_currenlty_running = self.get_latest_run_and_status() != None
+        other_run_currenlty_running = self.get_latest_run_and_status() is not None
         assert not other_run_currenlty_running, "Another run is currently running. Exiting."
         
         weights, trial_type = self.experimemt_manager.propose_next_weights()
         self.logger.info(f"Next run proposed weights: {weights}")
-
+        weights_dict = {}
+        for i, domain_name in enumerate(self.config.train_data.keys()):
+            weights_dict[domain_name] = weights[i]
         trial_name =  f"exp_{experiment_idx}_trial_{trial_idx}"
-        workspace = os.path.join(self.config.experiment_tracking_config.runs_folder, trial_name)
+       
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+        data_dir = os.path.join(self.config.data_workspace, timestamp)
+
         new_trial = Trial(
             idx=trial_idx,
             experiment_idx=experiment_idx,
             name=trial_name,
             status=TrialStatus.INITIALIZED,
-            weights=weights,
-            workspace=workspace,
-            type=trial_type
+            weights=weights_dict,
+            type=trial_type,
+            data_dir=data_dir
         )
 
+        workspace = new_trial.get_workspace(self.log_config)
         if os.path.exists(workspace):
             self.logger.error(f"Initializing new trial, however, workspace {workspace} already exists. Exiting.")
             exit(1)
         os.makedirs(workspace)
 
-        self.config.experiment_history[-1].trials.append(new_trial)
-        self._save_config()
+        self.experiment_history[-1].trials.append(new_trial)
+        self._save_experiment_history()
 
         return new_trial
 
     def mix_dataset(self, trial: Trial):
+
+        # iterate over all availabe gpus and block memory
+        # num_gpus = torch.cuda.device_count()
+        # memory_to_allocate_gb = 35
+        # allocated_tensors = []
+        # for device in range(num_gpus):
+        #     self.logger.info(f"Allocating memory on device {device}")
+        #     device_str = f"cuda:{device}"
+        #     tensor = allocate_memory_on_gpu(memory_to_allocate_gb, device=device_str)
+        #     allocated_tensors.append(tensor)
+
+
         assert trial.status == TrialStatus.INITIALIZED, "Run must be initialized before mixing dataset."
-        data_dir = os.path.join(self.config.data_workspace, trial.name)
-        
-        if os.path.exists(data_dir):
-            self.logger.warning(f"Data directory {data_dir} already exists. Deleting previous data to create new mixture.")
-            shutil.rmtree(data_dir)
-        os.makedirs(data_dir)
+        if os.path.exists(trial.data_dir):
+            self.logger.warning(f"Data directory {trial.data_dir} already exists. Deleting previous data to create new mixture.")
+            shutil.rmtree(trial.data_dir)
+        os.makedirs(trial.data_dir)
 
         # setup special logger for mixing
-        mixing_log_path = os.path.join(trial.workspace, "mixing.log")
+        mixing_log_path = os.path.join(trial.get_workspace(self.log_config), "mixing.log")
         trial.mixing_log_path = mixing_log_path
 
-        domains = [domain for (domain, _) in self.config.train_data]
-        manifests = [manifest for (_, manifest) in self.config.train_data]
-        mixing_weights = trial.weights
-        output_dir = data_dir
+        domains = list(self.config.train_data.keys())
+        assert domains == list(trial.weights.keys()), "Weights must be in the same order as domains."
+        manifests = list(self.config.train_data.values())
+        mixing_weights = list(trial.weights.values())
+        output_dir = trial.data_dir
         token_count = self.config.open_lm_config.complete_train_token_count
         chunk_size = self.config.data_mixing_config.chunk_size
         shard_size = self.config.data_mixing_config.shard_size
@@ -135,15 +189,36 @@ class ExperimentRunner:
         true_mixing_weights = mix_tokenized_data(domains, manifests, mixing_weights, output_dir=output_dir, output_token_count=token_count, chunk_size=chunk_size, shard_size=shard_size, oversample_factor=oversample_factor, log_path=mixing_log_path)
         self.logger.info(f"Dataset mixed. True mixing weights: {true_mixing_weights}")
 
-        trial.true_mixing_weights = true_mixing_weights
-        trial.status = TrialStatus.MIXED
-        self._save_config()
+        # Format to dict
+        true_mixing_weights_dict = {}
+        for i, domain_name in enumerate(self.config.train_data.keys()):
+            true_mixing_weights_dict[domain_name] = true_mixing_weights[i]
 
+        trial.true_mixing_weights = true_mixing_weights_dict
+        trial.status = TrialStatus.MIXED
+        self._save_experiment_history()
+
+        # Add logs to wandb
+        log_obj = trial.get_mixing_weights_wandb()
+        experiment = self.experiment_history[trial.experiment_idx]
+        mixing_table = experiment.generate_mixing_table()
+        log_obj.update({
+            "mixing_table": mixing_table
+        })
+        wandb.log({
+            f"exp_{trial.experiment_idx}": log_obj
+        })
+
+        # deallocate memory
+        # for i, tensor in enumerate(allocated_tensors):
+        #     self.logger.info(f"Deallocating memory on device {i}")
+        #     deallocate_memory_on_gpu(tensor)
+        
         return trial
     
     def create_manifest_for_dataset(self, trial: Trial):
         assert trial.status == TrialStatus.MIXED, "Run must be mixed before creating manifest."
-        data_dir = os.path.join(self.config.data_workspace, trial.name)
+        data_dir = trial.data_dir
         assert os.path.exists(data_dir), f"Data directory {data_dir} does not exist. Exiting."
 
         num_workers = self.config.data_mixing_config.no_workers
@@ -152,7 +227,7 @@ class ExperimentRunner:
 
         trial.status = TrialStatus.MANIFEST_CREATED
         trial.dataset = os.path.join(data_dir, "manifest.jsonl")
-        self._save_config()
+        self._save_experiment_history()
 
         return trial
 
@@ -170,7 +245,7 @@ class ExperimentRunner:
 
         def create_directories():
             self.logger.info("Creating open-lm log directory.")
-            open_lm_log_dir = os.path.join(trial.workspace, "open_lm")
+            open_lm_log_dir = os.path.join(trial.get_workspace(self.log_config), "open_lm")
             if os.path.exists(open_lm_log_dir):
                 self.logger.error(f"Open-lm log directory {open_lm_log_dir} already exists. Exiting run.")
                 exit(1)
@@ -195,7 +270,7 @@ class ExperimentRunner:
             exit(1)
         
         trial.status = TrialStatus.RUNNING
-        self._save_config()
+        self._save_experiment_history()
 
         # Assemble config for open-lm
         self.logger.info("Assembling open-lm config")
@@ -206,7 +281,7 @@ class ExperimentRunner:
         open_lm_main(open_lm_config)
 
         trial.status = TrialStatus.RAN
-        self._save_config()
+        self._save_experiment_history()
 
         return trial
 
@@ -221,10 +296,10 @@ class ExperimentRunner:
             for line in val_file:
                 epoch_val_results = json.loads(line)
                 per_domain_results = {}
-                for i, (domain_name, _) in enumerate(self.config.val_data):
+                for i, domain_name in enumerate(self.config.val_data.keys()):
                     domain_result = epoch_val_results[i]
                     loss = domain_result["loss"]
-                    perplexity = math.exp(loss)
+                    perplexity = loss
                     eval_tokens = domain_result["tokens"]
                     train_tokens_seen = domain_result["train_tokens"]
                     loss_tokens_lower_95 = domain_result["loss_tokens_lower_95"]
@@ -243,23 +318,40 @@ class ExperimentRunner:
                     per_domain_results[domain_name] = val_results
                 all_results.append(per_domain_results)
         
-        trial.val_results = all_results
-        
+        trial.all_results = all_results
+        trial.val_results = all_results[-1]
         
         # calc weighted perplexity on last run
         weighted_perplexity = 0
-        val_weights_normalized = [weight / sum(trial.weights) for weight in trial.weights]
+        val_weights_normalized = [weight / sum(self.config.val_weights) for weight in self.config.val_weights]
         assert sum(val_weights_normalized) - 1 < 1e-6, "Weights must sum to 1."
-        for i, (domain_name, _) in enumerate(self.config.val_data):
+        for i, domain_name in enumerate(self.config.val_data.keys()):
             weight = val_weights_normalized[i]
-            perplexity = all_results[-1][domain_name].perplexity
+            perplexity = trial.val_results[domain_name].perplexity
             weighted_perplexity += weight * perplexity
+        
         trial.weighted_val_perplexity = weighted_perplexity
         self.experimemt_manager.add_evaluation(weighted_perplexity, trial.idx)
- 
-
         trial.status = TrialStatus.PARSED
-        self._save_config()
+        
+
+        # Add logs to wandb
+        experiment = self.experiment_history[trial.experiment_idx]
+        perplexity_table = experiment.generate_perplexity_table()
+        log_obj = trial.get_perplexity_wandb()
+        log_obj.update({
+            "perplexity_table": perplexity_table
+        })
+        wandb.log({
+            f"exp_{trial.experiment_idx}" :log_obj
+        })
+
+        self._save_experiment_history()
+
+        if self.config.delete_run_after_run:
+            trial_workspace = trial.get_workspace(self.log_config)
+            self.logger.info(f"Deleting run workspace {trial_workspace}")
+            shutil.rmtree(trial_workspace)
 
         return trial
     
@@ -271,7 +363,7 @@ class ExperimentRunner:
         shutil.rmtree(dataset_dir)
         trial.status = TrialStatus.DELETED
         trial.dataset = None
-        self._save_config()
+        self._save_experiment_history()
         return trial
 
     
@@ -289,8 +381,8 @@ class ExperimentRunner:
         params.append(("model", open_lm_config.model))
         params.append(("train-num-samples", per_episode_token_count))
         params.append(("dataset-manifest", trial.dataset))
-        val_data_paths = [path for (_, path) in self.config.val_data]
-        val_data_keys = [open_lm_config.data_key for _ in self.config.val_data]
+        val_data_paths = [path for  path in self.config.val_data.values()]
+        val_data_keys = [open_lm_config.data_key for _ in val_data_paths]
         params.append(("val-data", val_data_paths))
         params.append(("val-data-key", val_data_keys))
         params.append(("logs-dir", log_dir_base_path))
@@ -338,12 +430,18 @@ class ExperimentRunner:
 
     def _save_config(self):
         obj = cattrs.unstructure(self.config)
-        with open(self.config.experiment_tracking_config.config_path, "w") as config_file:
+        with open(self.log_config.config_path, "w") as config_file:
             yaml.safe_dump(obj, config_file)
+    
+    def _save_experiment_history(self):
+        obj = cattrs.unstructure(self.experiment_history)
+        with open(self.log_config.experiment_history_path, "w") as experiment_history_file:
+            yaml.safe_dump(obj, experiment_history_file)
+        wandb.save(self.log_config.experiment_history_path)
 
     
     def get_latest_run_and_status(self):
-        latest_trials = self.config.experiment_history[-1].trials
+        latest_trials = self.experiment_history[-1].trials
         if len(latest_trials) == 0:
             return None
         last_trial = latest_trials[-1]
@@ -352,8 +450,6 @@ class ExperimentRunner:
             return None
         
         return (last_trial, last_trial.status)
-
-
 
     def execute_next_trial(self):
         pipeline = [
@@ -417,8 +513,15 @@ class ExperimentRunner:
     def is_done(self):
         return self.experimemt_manager.check_all_completed()
 
-    def get_best_weights(self):
-        return self.experimemt_manager.get_best_weights()
+    def get_best_weights_and_perplexity(self):
+        best_perplexity = float("inf")
+        for experiment in self.experiment_history:
+            exp_best_weight, exp_best_perplexity = experiment.get_best_weights_and_perplexity()
+            if exp_best_perplexity < best_perplexity:
+                best_perplexity = exp_best_perplexity
+                best_weights = exp_best_weight
+        
+        return best_weights, best_perplexity
     
 
 

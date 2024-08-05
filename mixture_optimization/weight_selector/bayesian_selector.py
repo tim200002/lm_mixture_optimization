@@ -17,6 +17,7 @@ from mixture_optimization.datamodels.trial_tracking_config import (
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
 from mixture_optimization.weight_selector.utils.botorch_constraints import (
     create_probability_constraint_free_weights,
+    get_bounds_from_config,
     get_unit_bounds,
 )
 from mixture_optimization.weight_selector.weight_selector_interface import (
@@ -43,6 +44,7 @@ class BayesianWeightSelector(WeightSelectorInterface):
         
         self.batch_size = 1 # Right now no support for parallelization
         self.no_free_weights = config.no_weights - 1
+        self.dtype = torch.double
 
         self.num_restarts = 20
         self.raw_samples = 100
@@ -52,18 +54,31 @@ class BayesianWeightSelector(WeightSelectorInterface):
         # preliminary checks
         assert all([run.value is not None for run in self.trial_memory]), "All runs must be evaluated before proposing next weights"
         
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = "cpu"
         logger.info(f"Proposing next weights. Using device {device}")
         
         X = torch.tensor([run.weights[:-1] for run in self.trial_memory], dtype=torch.double, device=device) #! Only use free weights
         Y = torch.tensor([run.value for run in self.trial_memory], dtype=torch.double, device=device).unsqueeze(-1)
 
-        pdf_constraint = create_probability_constraint_free_weights(self.no_free_weights, self.dtype, device)
-        constraints = [pdf_constraint]
+        if not self.config.bounds:
+            no_weights = X.shape[1]
+            bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=self.dtype)
+            last_weight_constraint = None
+        elif  self.config.normalize_bounds:
+            no_weights = X.shape[1]
+            X = self._normalize(X)
+            bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=self.dtype)
+            last_weight_constraint = None
+        else:
+            bounds = get_bounds_from_config(self.config.bounds).to(self.dtype).to(device)
+            bounds = bounds[:, :-1] # remove last bound as it is implicitly 1-sum(weights)
+            last_weight_constraint = bounds[:, -1].tolist()
+
+        constraints = create_probability_constraint_free_weights(self.no_free_weights, last_weight_constraint=last_weight_constraint, dtype=self.dtype)
 
         # normalize Y
         Y = (Y - Y.mean()) / Y.std()
-        X = self._normalize(X)
+
 
         model = SingleTaskGP(X, Y)
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
@@ -73,16 +88,26 @@ class BayesianWeightSelector(WeightSelectorInterface):
 
         next_weight, _ = optimize_acqf(
             acq_function=acqf,
-            bounds=get_unit_bounds(self.no_free_weights),
+            bounds=bounds,
             inequality_constraints=constraints,
             q=self.batch_size,
             num_restarts = self.num_restarts,
             raw_samples = self.raw_samples,
         )
-        
-        next_weight = self._unnormalize(next_weight)
-        weights = self._convert_free_weights_to_pdf(next_weight.squeeze().tolist())
 
+        if self.config.bounds and self.config.normalize_bounds:
+            next_weight = self._unnormalize(next_weight)
+        
+        next_weight = next_weight.squeeze()
+        if next_weight.numel() > 1:
+            next_weight = next_weight.tolist()
+        else:
+            next_weight = [next_weight.item()]
+
+
+        weights = self._convert_free_weights_to_pdf(next_weight)
+        
+        
         unit = TrialMemoryUnit(
             trial_index=self.get_next_trial_idx(),
             trial_type=TrialType.OPTIMIZATION,

@@ -2,7 +2,7 @@ import logging
 from typing import List, Tuple
 from mixture_optimization.datamodels.trial_tracking_config import Experiment, ExperimentConfig, Trial, TrialType
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
-from mixture_optimization.weight_selector.utils.botorch_constraints import create_probability_constraint_free_weights
+from mixture_optimization.weight_selector.utils.botorch_constraints import create_probability_constraint_free_weights, get_bounds_from_config
 from mixture_optimization.weight_selector.weight_selector_interface import TrialMemoryUnit, WeightSelectorInterface
 import math
 from dataclasses import dataclass
@@ -20,8 +20,6 @@ from gpytorch.constraints import Interval
 from gpytorch.kernels import MaternKernel, ScaleKernel
 from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood
-from botorch.utils.sampling import sample_simplex
-from mixture_optimization.weight_selector.utils.botorch_constraints import get_unit_bounds
 
 logger = logging.getLogger("experiment_runner")
 
@@ -57,9 +55,11 @@ def update_state(state, Y_next):
     if state.success_counter == state.success_tolerance:  # Expand trust region
         state.length = min(2.0 * state.length, state.length_max)
         state.success_counter = 0
+        logger.info("Expanding trust region")
     elif state.failure_counter == state.failure_tolerance:  # Shrink trust region
         state.length /= 2.0
         state.failure_counter = 0
+        logger.info("Shrinking trust region")
 
     state.best_value = max(state.best_value, max(Y_next).item())
     if state.length < state.length_min:
@@ -74,45 +74,46 @@ def generate_sample(
     num_restarts=10,
     raw_samples=512,
     inequality_constraints=None,
+    bounds: torch.Tensor=None , # default bounds limit each parameter to [0,1] provide different bounds if you want to change this
+    dtype=None,
 ):  
     # ToDo: Use posterior maximum since not noise free (indicated in paper)
     batch_size = 1 # only batch size 1 currentuly supported
     assert X.min() >= 0.0 and X.max() <= 1.0 and torch.all(torch.isfinite(Y))
 
-    #Find posterior mean to define center of trust region
-    warnings.filterwarnings("error", category=BadInitialCandidatesWarning)
-    try:
-        ei = PosteriorMean(model)
-        x_map, _ = optimize_acqf(
-            ei,
-            bounds=get_unit_bounds(X.shape[1]),
-            q=batch_size,
-            num_restarts=num_restarts,
-            raw_samples=raw_samples,
-            inequality_constraints=inequality_constraints,
-            return_best_only=True,
-        )
-        x_center = x_map
-    except BadInitialCandidatesWarning:
-        logger.info("Initializing turbo trust region center from posterior cannot be done, as posterior mean optimization failed. Using argmax of previous points instead")
-        x_center = X[Y.argmax(), :].clone()
-    warnings.resetwarnings()
+    ei = PosteriorMean(model)
+    x_map, _ = optimize_acqf(
+        ei,
+        bounds= bounds,
+        q=batch_size,
+        num_restarts=num_restarts,
+        raw_samples=raw_samples,
+        inequality_constraints=inequality_constraints,
+        return_best_only=True,
+    )
+    x_center = x_map.squeeze(0)
+
+
 
     # Scale the TR to be proportional to the lengthscales
     weights = model.covar_module.base_kernel.lengthscale.squeeze().detach()
-    weights = weights / weights.mean()
-    weights = weights / torch.prod(weights.pow(1.0 / len(weights)))
+ 
+    if weights.numel() > 1:
+        weights = weights / weights.mean()
+        weights = weights / torch.prod(weights.pow(1.0 / len(weights)))
+    
     tr_lb = torch.clamp(x_center - weights * state.length / 2.0, 0.0, 1.0)
     tr_ub = torch.clamp(x_center + weights * state.length / 2.0, 0.0, 1.0)
+    turbo_bounds = torch.stack([tr_lb, tr_ub])
 
-    # sharpen bounds to be within [0, 1]
-    tr_lb = torch.max(tr_lb, torch.zeros_like(tr_lb))
-    tr_ub = torch.min(tr_ub, torch.ones_like(tr_ub))
+    bounds_sharpened = torch.stack([
+        torch.max(bounds[0], turbo_bounds[0]), # lower bound limited by max i.e. [0.1, 0.2] -> 0.2
+        torch.min(bounds[1], turbo_bounds[1])]) # upper bound limited by min i.e. [0.8, 0.9] -> 0.8
 
     ei = qNoisyExpectedImprovement(model, X)
     X_next, acq_value = optimize_acqf(
         ei,
-        bounds=torch.stack([tr_lb, tr_ub]),
+        bounds= bounds_sharpened, 
         q=batch_size,
         num_restarts=num_restarts,
         raw_samples=raw_samples,
@@ -125,7 +126,7 @@ class TurboWeightSelector(WeightSelectorInterface):
 
     @staticmethod
     def from_scratch(config: WeightSelectorConfig, exp_idx: int) -> Tuple[WeightSelectorInterface, ExperimentConfig]:
-        samples = sample_simplex(config.no_weights, config.no_initializations, qmc=True).tolist()
+        samples = WeightSelectorInterface._sample_uniform(config.no_initializations, config.no_weights, config.bounds).tolist()
         exp_config = ExperimentConfig(initialization_weights=samples, experiment_idx=exp_idx)
         return TurboWeightSelector(config, exp_config), exp_config
     
@@ -139,14 +140,13 @@ class TurboWeightSelector(WeightSelectorInterface):
 
         self.batch_size = 1 # right now we dont support parallel processing
         self.state = None
-        self.no_free_weights = self.config.no_weights - 1
+        self.no_free_weights = self.no_weights - 1
  
         # Some turbo hyperparameters
         self.num_restarts = 10
         self.raw_samples = 512
         self.dtype = torch.double
           
-
         # Tracking
         self.initialization_runs = [] # list of initialization runs, each dict with keys trial_idx, free_weights, value
         self.current_turbo_run = [] # list of dict with keys trial_idx, free_weights, value
@@ -154,19 +154,33 @@ class TurboWeightSelector(WeightSelectorInterface):
     
 
     def _propose_next_weights_optimization(self):
+        # when starting first experimen without history, guarantee set
+        if self.state is None:
+                self.state = self._init_state()
+
         # preliminary checks
         assert all([run.value is not None for run in self.trial_memory]), "All runs must be evaluated before proposing next weights"
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = "cpu"
         logger.info(f"Proposing next turbo weights. Using device {device}")
-        # Generate new sampling points    
+        # Generate new sampling points 
         X = torch.tensor([run.weights[:-1] for run in self.trial_memory], dtype=self.dtype, device=device) #! Only use free weights
         Y = torch.tensor([run.value for run in self.trial_memory], dtype=self.dtype, device=device).unsqueeze(-1)
+        
+        if not self.config.bounds:
+            no_weights = X.shape[1]
+            bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=self.dtype)
+        elif  self.config.normalize_bounds:
+            no_weights = X.shape[1]
+            X = self._normalize(X)
+            bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=self.dtype)
+            last_weight_constraint = None
+        else:
+            bounds = get_bounds_from_config(self.config.bounds).to(self.dtype).to(device)
+            bounds = bounds[:, :-1] # remove last weight
+            last_weight_constraint = bounds[:, -1].tolist()
 
-        X = self._normalize(X)
-
-        pdf_constraint = create_probability_constraint_free_weights(self.no_free_weights, self.dtype, device)
-        constraints = [pdf_constraint]
+        constraints = create_probability_constraint_free_weights(self.no_free_weights, last_weight_constraint=last_weight_constraint, dtype=self.dtype)
         
         train_y = (Y - Y.mean()) / Y.std()
         likelihood = GaussianLikelihood()
@@ -195,11 +209,19 @@ class TurboWeightSelector(WeightSelectorInterface):
                 num_restarts=self.num_restarts,
                 raw_samples=self.raw_samples,
                 inequality_constraints=constraints,
+                bounds=bounds,
+                dtype=self.dtype
             )
 
         # Convert weights
-        next_sample = self._unnormalize(next_sample)
-        next_free_weights = next_sample.squeeze().tolist()
+        if self.config.bounds and self.config.normalize_bounds:
+            next_sample = self._unnormalize(next_sample)
+        next_free_weights = next_sample.squeeze()
+        
+        if next_free_weights.numel() > 1:
+            next_free_weights = next_free_weights.tolist()
+        else:
+            next_free_weights = [next_free_weights.item()]
         next_weights = self._convert_free_weights_to_pdf(next_free_weights)
 
         unit = TrialMemoryUnit(
@@ -208,7 +230,6 @@ class TurboWeightSelector(WeightSelectorInterface):
             weights=next_weights
         )
         self.trial_memory.append(unit)
-
         return next_weights, TrialType.OPTIMIZATION
 
 
@@ -217,9 +238,11 @@ class TurboWeightSelector(WeightSelectorInterface):
         
         trial = self.trial_memory[-1]
         if trial.trial_type == TrialType.OPTIMIZATION:
+            # Resotring from history guarantee state set
             if self.state is None:
                 self.state = self._init_state()
             
+            logger.info(f"Update turbo state with value {trial.value}")
             value_tensor = torch.tensor([trial.value], dtype=self.dtype)
             self.state = update_state(self.state, value_tensor)
 
@@ -228,8 +251,9 @@ class TurboWeightSelector(WeightSelectorInterface):
         for trial in self.trial_memory:
             if trial.trial_type == TrialType.INITIALIZATION:
                 initialization_trials_value.append(trial.value)
-            elif trial.trial_type == TrialType.OPTIMIZATION and trial.value is not None:
-                raise ValueError("Turbo initialization must be completed before first optimization trial is completed")
+            # ToDo improve this / check this
+            elif trial.trial_type == TrialType.OPTIMIZATION:
+                pass
             else:
                 raise ValueError("Unknown trial type")
         

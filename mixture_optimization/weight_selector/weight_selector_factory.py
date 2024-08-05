@@ -23,6 +23,9 @@ def _weight_selector_factory(config: WeightSelectorConfig) -> WeightSelectorInte
     elif type == WeightSelectorType.SIMPLEX:
         from mixture_optimization.weight_selector.simplex_selector import RandomSimplexSelector
         cls = RandomSimplexSelector
+    elif type == WeightSelectorType.LIN_INTERP:
+        from mixture_optimization.weight_selector.lin_interp_selector import LinInterpSelector
+        cls = LinInterpSelector
     else:
         raise ValueError(f"Weight selector type {type} not recognized.")
 

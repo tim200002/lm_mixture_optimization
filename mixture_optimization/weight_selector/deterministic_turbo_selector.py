@@ -20,7 +20,6 @@ from gpytorch.kernels import MaternKernel, ScaleKernel
 from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.utils.sampling import sample_simplex
-from mixture_optimization.weight_selector.utils.botorch_constraints import get_unit_bounds
 
 logger = logging.getLogger("experiment_runner")
 
@@ -122,7 +121,7 @@ class TurboWeightSelector(WeightSelectorInterface):
 
         self.batch_size = 1 # right now we dont support parallel processing
         self.state = None
-        self.no_free_weights = self.config.no_weights - 1
+        self.no_free_weights = self.no_weights - 1
  
         # Some turbo hyperparameters
         self.num_restarts = 10

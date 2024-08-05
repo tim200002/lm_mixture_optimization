@@ -7,6 +7,7 @@ class WeightSelectorType(Enum):
     TURBO = "turbo"
     SIMPLEX = "simplex"
     DETERMINISTIC = "deterministic"
+    LIN_INTERP = "lin_interp"
 
 
 
@@ -19,6 +20,7 @@ class WeightSelectorConfig:
     maximize: bool
     bounds: Optional[List[Tuple[float, float] | None]] = None
     no_optimizations: Optional[int] = None
+    normalize_bounds: bool = False
     kwargs: dict = {}
 
 
