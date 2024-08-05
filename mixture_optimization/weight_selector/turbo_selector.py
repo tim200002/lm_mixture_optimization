@@ -74,24 +74,17 @@ def generate_sample(
     num_restarts=10,
     raw_samples=512,
     inequality_constraints=None,
-    bounds: torch.Tensor = None, # default bounds limit each parameter to [0,1] provide different bounds if you want to change this
+    bounds: torch.Tensor=None , # default bounds limit each parameter to [0,1] provide different bounds if you want to change this
     dtype=None,
 ):  
     # ToDo: Use posterior maximum since not noise free (indicated in paper)
     batch_size = 1 # only batch size 1 currentuly supported
     assert X.min() >= 0.0 and X.max() <= 1.0 and torch.all(torch.isfinite(Y))
 
-    #Find posterior mean to define center of trust region
-    if bounds is None:
-        no_weights = X.shape[1]
-        temp_bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=dtype)
-    else:
-        print("Bounds not None")
-
     ei = PosteriorMean(model)
     x_map, _ = optimize_acqf(
         ei,
-        bounds= temp_bounds,
+        bounds= bounds,
         q=batch_size,
         num_restarts=num_restarts,
         raw_samples=raw_samples,
@@ -104,11 +97,7 @@ def generate_sample(
 
     # Scale the TR to be proportional to the lengthscales
     weights = model.covar_module.base_kernel.lengthscale.squeeze().detach()
-    # print(f"Lengthscales: {weights}")
-    # print(f"Weights datatype {type(weights)}")
-    # print(f"Weights shape {weights.shape}")
-    # print(f"Weights numel {weights.numel()}")
-    
+ 
     if weights.numel() > 1:
         weights = weights / weights.mean()
         weights = weights / torch.prod(weights.pow(1.0 / len(weights)))
@@ -117,12 +106,9 @@ def generate_sample(
     tr_ub = torch.clamp(x_center + weights * state.length / 2.0, 0.0, 1.0)
     turbo_bounds = torch.stack([tr_lb, tr_ub])
 
-    if bounds is None:
-        bounds_sharpened = turbo_bounds
-    else:
-        bounds_sharpened = torch.stack([
-            torch.max(bounds[0], turbo_bounds[0]), # lower bound limited by max i.e. [0.1, 0.2] -> 0.2
-            torch.min(bounds[1], turbo_bounds[1])]) # upper bound limited by min i.e. [0.8, 0.9] -> 0.8
+    bounds_sharpened = torch.stack([
+        torch.max(bounds[0], turbo_bounds[0]), # lower bound limited by max i.e. [0.1, 0.2] -> 0.2
+        torch.min(bounds[1], turbo_bounds[1])]) # upper bound limited by min i.e. [0.8, 0.9] -> 0.8
 
     ei = qNoisyExpectedImprovement(model, X)
     X_next, acq_value = optimize_acqf(
@@ -182,15 +168,19 @@ class TurboWeightSelector(WeightSelectorInterface):
         Y = torch.tensor([run.value for run in self.trial_memory], dtype=self.dtype, device=device).unsqueeze(-1)
         
         if not self.config.bounds:
-            bounds = None
+            no_weights = X.shape[1]
+            bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=self.dtype)
         elif  self.config.normalize_bounds:
+            no_weights = X.shape[1]
             X = self._normalize(X)
-            bounds = None # parameter values constraint to [0,1]
+            bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=self.dtype)
+            last_weight_constraint = None
         else:
             bounds = get_bounds_from_config(self.config.bounds).to(self.dtype).to(device)
+            bounds = bounds[:, :-1] # remove last weight
+            last_weight_constraint = bounds[:, -1].tolist()
 
-        pdf_constraint = create_probability_constraint_free_weights(self.no_free_weights, self.dtype)
-        constraints = [pdf_constraint]
+        constraints = create_probability_constraint_free_weights(self.no_free_weights, last_weight_constraint=last_weight_constraint, dtype=self.dtype)
         
         train_y = (Y - Y.mean()) / Y.std()
         likelihood = GaussianLikelihood()
@@ -229,7 +219,7 @@ class TurboWeightSelector(WeightSelectorInterface):
         next_free_weights = next_sample.squeeze()
         
         if next_free_weights.numel() > 1:
-            next_free_weights = next_free_weights.toList()
+            next_free_weights = next_free_weights.tolist()
         else:
             next_free_weights = [next_free_weights.item()]
         next_weights = self._convert_free_weights_to_pdf(next_free_weights)

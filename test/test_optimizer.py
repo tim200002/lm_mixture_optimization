@@ -1,4 +1,5 @@
 import sys
+from typing import List
 sys.path.append(".")
 
 import cattrs
@@ -12,22 +13,19 @@ import logging
 
 logger = logging.getLogger("experiment_runner")
 
-def rastigin(x) -> float:
-    if isinstance(x, float):
-        x = np.array([x])
-    elif isinstance(x, list):
-        x = np.array(x)
-    
-    A = 10
-    n = len(x)
-    return A * n + np.sum(x**2 - A * np.cos(2 * np.pi * x))
 
+def func(r, B, b):
+    eps = 1e-6
+    return min(10, B / (r**b + eps))
 
-def test_function(x):
-    assert isinstance(x, list)
-    assert len(x) == 2
+best_parameters = {'Books': [4.06201743, 0.06136096], 'CC': [4.51788667, 0.06288045], 'stack-v4': [2.3069031 , 0.27325697]}
 
-    return (x[0]- 0.5)**2
+def test_function(weights: List):
+    sum = 0
+    for domain_weight, domain_parameters in zip(weights, best_parameters.values()):
+        sum += func(domain_weight, *domain_parameters)
+    sum /= len(weights)
+    return sum
 
 
 def load_config(path:str) -> WeightSelectorConfig:
@@ -59,8 +57,9 @@ if __name__ == "__main__":
     trial_memory = optimization_loop(config)
 
     logger.info("Optimization completed. Visualizing results")
-    values = [trial.value for trial in trial_memory if trial.value is not None]
-    plt.plot(values)
-    plt.show()
+    values = [ - trial.value for trial in trial_memory if trial.value is not None]
+    
+    best_value = min(values)
+    print(f"Best value: {best_value}")
 
     

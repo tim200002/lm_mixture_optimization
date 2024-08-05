@@ -141,6 +141,11 @@ class WeightSelectorInterface:
     @classmethod
     def _convert_free_weights_to_pdf(cls, free_weights):
         fixed_weight = 1 - sum(free_weights)
+        eps = 1e-6
+        assert fixed_weight >= -eps, f"Fixed weight must be positive, got {fixed_weight}"
+        if fixed_weight < 0:
+            logger.warning(f"Fixed weight is negative of value {fixed_weight}. Setting to 0.")
+            fixed_weight = 0
         return [*free_weights, fixed_weight]
     
     @classmethod

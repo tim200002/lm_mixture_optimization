@@ -63,15 +63,18 @@ class BayesianWeightSelector(WeightSelectorInterface):
         if not self.config.bounds:
             no_weights = X.shape[1]
             bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=self.dtype)
+            last_weight_constraint = None
         elif  self.config.normalize_bounds:
             no_weights = X.shape[1]
             X = self._normalize(X)
             bounds = torch.tensor([[0.0] * no_weights, [1.0] * no_weights], dtype=self.dtype)
+            last_weight_constraint = None
         else:
             bounds = get_bounds_from_config(self.config.bounds).to(self.dtype).to(device)
+            bounds = bounds[:, :-1] # remove last bound as it is implicitly 1-sum(weights)
+            last_weight_constraint = bounds[:, -1].tolist()
 
-        pdf_constraint = create_probability_constraint_free_weights(self.no_free_weights, self.dtype)
-        constraints = [pdf_constraint]
+        constraints = create_probability_constraint_free_weights(self.no_free_weights, last_weight_constraint=last_weight_constraint, dtype=self.dtype)
 
         # normalize Y
         Y = (Y - Y.mean()) / Y.std()
@@ -101,7 +104,10 @@ class BayesianWeightSelector(WeightSelectorInterface):
         else:
             next_weight = [next_weight.item()]
 
+
         weights = self._convert_free_weights_to_pdf(next_weight)
+        
+        
         unit = TrialMemoryUnit(
             trial_index=self.get_next_trial_idx(),
             trial_type=TrialType.OPTIMIZATION,

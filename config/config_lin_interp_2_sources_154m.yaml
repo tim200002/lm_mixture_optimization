@@ -1,4 +1,4 @@
-name: lin_interp_books_c4_more_checkpoints
+name: lin_interp_books_c4_80M
 description: "Lin interpolation to find optimum mixign between two sources"
 train_data:
   Books: "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/train/2048-v1/0/manifest.jsonl"
@@ -23,14 +23,14 @@ experiment_manager_config:
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # setup
-  complete_train_token_count: 500000000
-  model: open_lm_25m.json
+  complete_train_token_count: 1580000000
+  model: open_lm_79m_v2.json
   seed: 100
   data_key: txt
   report_to: tensorboard
   workers: 2
-  epochs: 5
-  log_every_n_steps: 20
+  epochs: 10
+  log_every_n_steps: 100
 
   # training parameters
   global_batch_size: 16
@@ -59,7 +59,7 @@ open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
 data_mixing_config:
   chunk_size: 2048
   shard_size: 2048
-  oversample_factor: 1.05
+  oversample_factor: 1.2
   no_workers: 8
   
 

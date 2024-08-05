@@ -51,6 +51,7 @@ class Trial:
     open_lm_log_dir : Optional[str] = None
     val_file_path: Optional[str] = None
     val_results: Optional[Dict[str, ValResult]] = None
+    all_results: Optional[List[Dict[str, ValResult]]] = None
     weighted_val_perplexity: Optional[float] = None
 
     def get_workspace(self, log_config): # No type hints due to circular import

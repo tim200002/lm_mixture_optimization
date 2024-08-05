@@ -4,14 +4,13 @@ from mixture_optimization.datamodels.weight_selector_config import WeightSelecto
 from mixture_optimization.weight_selector.weight_selector_interface import WeightSelectorInterface
 from typing import Tuple
 
-from botorch.utils.sampling import sample_simplex
 logger = logging.getLogger("experiment_runner")
 
 class RandomSimplexSelector(WeightSelectorInterface):
 
     @staticmethod
     def from_scratch(config: WeightSelectorConfig, exp_idx: int) -> Tuple[WeightSelectorInterface, ExperimentConfig]:
-        samples = sample_simplex(config.no_weights, config.no_initializations, qmc=True).tolist()
+        samples = WeightSelectorInterface._sample_uniform(config.no_initializations, config.no_weights, config.bounds).tolist()
         exp_config = ExperimentConfig(initialization_weights=samples, experiment_idx=exp_idx)
         return RandomSimplexSelector(config, exp_config), exp_config
     
@@ -22,15 +21,7 @@ class RandomSimplexSelector(WeightSelectorInterface):
 
     def __init__(self, config: WeightSelectorConfig, experiment_config: ExperimentConfig):
         super().__init__(config, experiment_config)
-        assert config.no_optimizations == None, "Simplex selector does not support optimizations"
-
-    
-    def propose_next_weights(self):
-       next_trial_idx = self.no_initialization_started()
-       weights = self.experiment_config.initialization_weights[next_trial_idx]
-       assert sum(weights) - 1 < 1e-4, f"Sum of weights should be 1, but is {sum(weights)}"
-       return weights, TrialType.INITIALIZATION
-
+        assert config.no_optimizations is None, "Simplex selector does not support optimizations"
     
     def experiment_done(self):
         # Override as no optimizations are supported

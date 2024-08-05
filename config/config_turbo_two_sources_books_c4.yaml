@@ -1,10 +1,13 @@
-name: lin_interp_books_c4_more_checkpoints
-description: "Lin interpolation to find optimum mixign between two sources"
+name: turbo-two-sources-books-c4
+description: "Turbo optimization only between two sources with new bounds"
 train_data:
   Books: "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/train/2048-v1/0/manifest.jsonl"
+  #CC: "/media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/train/2048-v1/0/manifest.jsonl"
   C4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/c4/train/2048-v1/0/manifest.jsonl" 
+ 
 val_data:
   Books: "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/val/2048-v1/0/shard-0000000.tar"
+  #CC: "/media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/val/2048-v1/0/shard-0000000.tar"
   C4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/c4/val/2048-v1/0/shard-0000000.tar"
 val_weights: [1,1]
 
@@ -16,9 +19,9 @@ dataset_tag: "dolma_v1_6_small"
 experiment_manager_config:
   no_experiments: 1
   weight_selector_config:
-    type: "lin_interp"
+    type: "turbo"
     no_weights: 2
-    no_initializations: 12
+    no_initializations: 4
     maximize: false
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
@@ -59,7 +62,7 @@ open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
 data_mixing_config:
   chunk_size: 2048
   shard_size: 2048
-  oversample_factor: 1.05
+  oversample_factor: 1.5
   no_workers: 8
   
 

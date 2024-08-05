@@ -318,8 +318,8 @@ class ExperimentRunner:
                     per_domain_results[domain_name] = val_results
                 all_results.append(per_domain_results)
         
+        trial.all_results = all_results
         trial.val_results = all_results[-1]
-        
         
         # calc weighted perplexity on last run
         weighted_perplexity = 0
