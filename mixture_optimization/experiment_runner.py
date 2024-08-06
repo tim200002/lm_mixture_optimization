@@ -184,9 +184,10 @@ class ExperimentRunner:
         chunk_size = self.config.data_mixing_config.chunk_size
         shard_size = self.config.data_mixing_config.shard_size
         oversample_factor = self.config.data_mixing_config.oversample_factor
+        shard_selection_multiplier = self.config.data_mixing_config.shard_selection_multiplier
 
         self.logger.info(f"Mixing dataset. Domains: {domains}, mixing weights: {mixing_weights}, output_dir: {output_dir}")
-        true_mixing_weights = mix_tokenized_data(domains, manifests, mixing_weights, output_dir=output_dir, output_token_count=token_count, chunk_size=chunk_size, shard_size=shard_size, oversample_factor=oversample_factor, log_path=mixing_log_path)
+        true_mixing_weights = mix_tokenized_data(domains, manifests, mixing_weights, output_dir=output_dir, output_token_count=token_count, chunk_size=chunk_size, shard_size=shard_size, oversample_factor=oversample_factor, log_path=mixing_log_path, shard_selection_multiplier=shard_selection_multiplier)
         self.logger.info(f"Dataset mixed. True mixing weights: {true_mixing_weights}")
 
         # Format to dict

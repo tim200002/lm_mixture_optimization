@@ -44,7 +44,7 @@ def linear_access_shard_reader(shard_path, logger):
 
 
 
-def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights: List[float], output_dir: str, output_token_count: int, chunk_size:int = 2048, shard_size=2048, oversample_factor=1.0, log_path: str = None, log_level: str = "INFO"):
+def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights: List[float], output_dir: str, output_token_count: int, chunk_size:int = 2048, shard_size=2048, oversample_factor=1.0, log_path: str = None, log_level: str = "INFO", shard_selection_multiplier=None):
 
     logger = logging.getLogger("data_mixing")
     logger.setLevel(log_level)
@@ -86,7 +86,12 @@ def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights:
                 manifest_dir_path = os.path.dirname(manifest_path)
                 full_shard_path = os.path.join(manifest_dir_path, f"{shard_name}.tar")
                 domain_chunk_counts[domain].append((num_sequences, full_shard_path))
-
+    
+    # If shard selection multiplier is not none, we will not include all shards in the mixing onlt he required number extended by the multiplier
+    if shard_selection_multiplier is not None:
+        for domain, desired_domain_counts in desired_domain_sequence_counts.items():
+            no_required_shards = math.ceil(desired_domain_counts / shard_size) * shard_selection_multiplier
+            domain_chunk_counts[domain] = np.random.choice(domain_chunk_counts[domain], no_required_shards, replace=False)
 
     domain_sampling_shard_list = []
     shard_sampling_locations_dict = defaultdict(list)
