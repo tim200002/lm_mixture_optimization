@@ -25,8 +25,8 @@ def read_config(config_path):
     return config
 
 if __name__ == "__main__":
-    config_path = "config/config_bayesian_cc_books_stack_pes2o.yaml"
-    init_run_path = "/root/code/mixture_optimization/logs/uniform_books_cc_stack_pes2o/experiment_history.yaml"
+    config_path = "config/config_bayesian_cc_books_stack_pes2o_reddit.yaml"
+    init_run_path = "logs/uniform_books_cc_stack_peso_reddit/experiment_history.yaml"
     experiments = read_experiments(init_run_path)
     experiment = experiments[0]
     config = read_config(config_path)

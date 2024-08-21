@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple, Dict
 
 import torch
 
-from mixture_optimization.datamodels.trial_tracking_config import Experiment, ExperimentConfig, TrialType
+from mixture_optimization.datamodels.trial_tracking_config import Experiment, ExperimentConfig, Trial, TrialType
 from mixture_optimization.datamodels.weight_selector_config import WeightSelectorConfig
 from attrs import define
 from botorch.utils.sampling import sample_simplex, HitAndRunPolytopeSampler
@@ -31,11 +31,6 @@ class WeightSelectorInterface:
         assert self.no_weights > 1, "Optimization requires at least 2 weights"
         self.trial_memory: List[TrialMemoryUnit] = []
 
-    def setup(self, experiment_history: Optional[Experiment]) -> Tuple[bool, ExperimentConfig]:
-        """"
-        Initialize from previous config. REturn (didUpdateCOnfig, UpdatedConfig)
-        """
-        raise NotImplementedError
 
     def add_evaluation(self, value: float, trial_index: int) -> None:
         assert self.trial_memory[-1].trial_index == trial_index, "Trial index mismatch"
@@ -199,6 +194,9 @@ class WeightSelectorInterface:
         
         bounds = get_bounds_from_config(self.config.bounds)
         return bo_transforms.unnormalize(X, bounds)
+    
+    def predict(self, x: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
 
         
     

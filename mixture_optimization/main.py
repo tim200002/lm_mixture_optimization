@@ -24,7 +24,7 @@ def main(config_path: Optional[str] = None, experiment_dir: Optional[str] = None
         experiment_runner.execute_next_trial() 
     
     experiment_runner.logger.info("All experiments are done.")
-    best_weights, best_perplexity = experiment_runner.get_best_weights()
+    best_weights, best_perplexity = experiment_runner.get_best_weights_and_perplexity()
     experiment_runner.logger.info(f"Best perplexity of {best_perplexity} achieved with weights: {best_weights}")
     wandb.finish()
 

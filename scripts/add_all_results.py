@@ -17,7 +17,7 @@ def read_experiments(experimnt_history):
     return experiments
 
 if __name__ == "__main__":
-    path = "/root/code/mixture_optimization/logs/lin_interp_cc_stack_0/experiment_history.yaml"
+    path = "/root/code/mixture_optimization/logs/bayesian_first_try_0/experiment_history.yaml"
     experiments = read_experiments(path)
 
     for experiment in experiments:

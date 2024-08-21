@@ -44,8 +44,10 @@ def linear_access_shard_reader(shard_path, logger):
 
 
 
-def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights: List[float], output_dir: str, output_token_count: int, chunk_size:int = 2048, shard_size=2048, oversample_factor=1.0, log_path: str = None, log_level: str = "INFO", shard_selection_multiplier=None):
-
+def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights: List[float], output_dir: str, output_token_count: int, chunk_size:int = 2048, shard_size=2048, oversample_factor=1.0, log_path: str = None, log_level: str = "INFO", shard_selection_multiplier=None, seed=None):
+    
+    
+    
     logger = logging.getLogger("data_mixing")
     logger.setLevel(log_level)
     # add stream handler to console
@@ -58,6 +60,12 @@ def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights:
     # Sanity checks
     assert len(manifests) == len(mixing_weights) == len(domains), "Number of manifests and mixing weights should be the same"
     start_time = time.time()
+
+    # Setup random number generator
+    if seed:
+        logger.info(f"Overriding seed to {seed}")
+        original_random_state = random.getstate()
+        random.seed(seed)
 
     # Normalize mixing weights
     mixing_weights = [weight / sum(mixing_weights) for weight in mixing_weights]
@@ -89,9 +97,21 @@ def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights:
     
     # If shard selection multiplier is not none, we will not include all shards in the mixing onlt he required number extended by the multiplier
     if shard_selection_multiplier is not None:
+        logger.info(f"Shard selection multiplier is set to {shard_selection_multiplier}. Only a fraction of shards will be included in the mixing")
         for domain, desired_domain_counts in desired_domain_sequence_counts.items():
-            no_required_shards = math.ceil(desired_domain_counts / shard_size) * shard_selection_multiplier
-            domain_chunk_counts[domain] = np.random.choice(domain_chunk_counts[domain], no_required_shards, replace=False)
+            no_required_shards = math.ceil(desired_domain_counts / shard_size * shard_selection_multiplier)
+            no_domains_original = len(domain_chunk_counts[domain])
+            # Edge case that we cannot oversample as planned
+            if no_required_shards > no_domains_original:
+                logger.info(f"Oversample factor too large. Using all available shards for {domain}. This is {no_domains_original} shards")
+                no_required_shards = no_domains_original
+                min_shards_required = math.ceil(desired_domain_counts / shard_size)
+                if min_shards_required > no_domains_original:
+                    logger.error(f"Insufficient data for {domain}. Required {min_shards_required} shards, but only {no_domains_original} are available")
+                    sys.exit(1)
+            logger.info(f"New shard number for {domain} is {no_required_shards}. This is down from {no_domains_original} shards")
+            sample_idx = np.random.choice(no_domains_original, no_required_shards, replace=False)
+            domain_chunk_counts[domain] = [domain_chunk_counts[domain][idx] for idx in sample_idx]
 
     domain_sampling_shard_list = []
     shard_sampling_locations_dict = defaultdict(list)
@@ -162,6 +182,10 @@ def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights:
     out_mixing_weights = []
     for domain in domains:
         out_mixing_weights.append(true_mixing_weights.get(domain, 0))
+    
+    if seed:
+        logger.info(f"Resetting seed to original state {original_random_state}")
+        random.setstate(original_random_state)
     
     return out_mixing_weights
 

@@ -15,5 +15,7 @@ cd /root/code/mixture_optimization
 #python -m mixture_optimization.main --config-path config/config_turbo_two_sources_79m.yaml
 #python -m mixture_optimization.main --config-path config/config_turbo_two_sources_154m.yaml
 #python -m mixture_optimization.main --experiment-dir logs/bayesian_books_cc_stack_0
-python -m mixture_optimization.main --experiment-dir logs/bayesian_books_cc_stack_pes2o_16init_0
-#python -m mixture_optimization.main --config-path config/config_simplex_cc_books_stack_pes2o.yaml
+#python -m mixture_optimization.main --experiment-dir logs/uniform_books_cc_stack_pes2o_80m
+#python -m mixture_optimization.main --config-path config/config_bayesian_cc_books_stack_pes2o_small.yaml
+python -m mixture_optimization.main --experiment-dir logs/bayesian_books_cc_stack_pes20_small_1
+#python -m mixture_optimization.main --experiment-dir logs/uniform_books_cc_stack_small_0

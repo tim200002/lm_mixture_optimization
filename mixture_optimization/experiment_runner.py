@@ -154,15 +154,15 @@ class ExperimentRunner:
 
     def mix_dataset(self, trial: Trial):
 
-        # iterate over all availabe gpus and block memory
-        # num_gpus = torch.cuda.device_count()
-        # memory_to_allocate_gb = 35
-        # allocated_tensors = []
-        # for device in range(num_gpus):
-        #     self.logger.info(f"Allocating memory on device {device}")
-        #     device_str = f"cuda:{device}"
-        #     tensor = allocate_memory_on_gpu(memory_to_allocate_gb, device=device_str)
-        #     allocated_tensors.append(tensor)
+        #iterate over all availabe gpus and block memory
+        #num_gpus = torch.cuda.device_count()
+        #memory_to_allocate_gb = 30
+        #allocated_tensors = []
+        #for device in range(num_gpus):
+        #    self.logger.info(f"Allocating memory on device {device}")
+        #    device_str = f"cuda:{device}"
+        #    tensor = allocate_memory_on_gpu(memory_to_allocate_gb, device=device_str)
+        #    allocated_tensors.append(tensor)
 
 
         assert trial.status == TrialStatus.INITIALIZED, "Run must be initialized before mixing dataset."
@@ -185,9 +185,10 @@ class ExperimentRunner:
         shard_size = self.config.data_mixing_config.shard_size
         oversample_factor = self.config.data_mixing_config.oversample_factor
         shard_selection_multiplier = self.config.data_mixing_config.shard_selection_multiplier
+        mixing_seed = self.config.data_mixing_config.seed
 
         self.logger.info(f"Mixing dataset. Domains: {domains}, mixing weights: {mixing_weights}, output_dir: {output_dir}")
-        true_mixing_weights = mix_tokenized_data(domains, manifests, mixing_weights, output_dir=output_dir, output_token_count=token_count, chunk_size=chunk_size, shard_size=shard_size, oversample_factor=oversample_factor, log_path=mixing_log_path, shard_selection_multiplier=shard_selection_multiplier)
+        true_mixing_weights = mix_tokenized_data(domains, manifests, mixing_weights, output_dir=output_dir, output_token_count=token_count, chunk_size=chunk_size, shard_size=shard_size, oversample_factor=oversample_factor, log_path=mixing_log_path, shard_selection_multiplier=shard_selection_multiplier, seed=seed)
         self.logger.info(f"Dataset mixed. True mixing weights: {true_mixing_weights}")
 
         # Format to dict
@@ -212,8 +213,8 @@ class ExperimentRunner:
 
         # deallocate memory
         # for i, tensor in enumerate(allocated_tensors):
-        #     self.logger.info(f"Deallocating memory on device {i}")
-        #     deallocate_memory_on_gpu(tensor)
+        #    self.logger.info(f"Deallocating memory on device {i}")
+        #    deallocate_memory_on_gpu(tensor)
         
         return trial
     

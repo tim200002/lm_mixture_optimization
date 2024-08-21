@@ -87,12 +87,16 @@ def optimize(function, parameters):
 
 
 if __name__ == "__main__":
-    path = "/root/code/mixture_optimization/logs/uniform_books_cc_stack_0/experiment_history.yaml"
+    path = "logs/uniform_books_cc_stack_pes2o/experiment_history.yaml"
     experiments = read_experiments(path)
     experiment = experiments[0]
 
     def func(r,  B, b):
-        return  B / (r**b)
+        eps = 1e-6
+        return  B / (r**b + eps)
     
-    best_parameters = fit(experiment, func)
-    print(best_parameters)
+    best_parameters, results = fit(experiment, func, region=(0.05, 0.95))
+    best_weights, best_value = optimize(func, best_parameters)
+    
+    print(f"Fitting created best parameters: {best_parameters}")
+    print(f"Optimization predicts best value {best_value} with weights {best_weights}")
