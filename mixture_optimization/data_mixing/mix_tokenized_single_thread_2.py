@@ -119,6 +119,7 @@ def mix_tokenized_data(domains: List[str], manifests: List[str], mixing_weights:
     for domain, chunk_counts in domain_chunk_counts.items():
         # for each domain extract no of sequences and sample random sequences from them
         total_chunk_counts = sum([count for count, _ in chunk_counts])
+        print(f"Domain {domain}, total chunks {total_chunk_counts} desired count { desired_domain_sequence_counts[domain]}")
         domain_sampling_locations = np.random.choice(total_chunk_counts, desired_domain_sequence_counts[domain], replace=False)
         # within each shard sequences must be in order
         domain_sampling_locations.sort()

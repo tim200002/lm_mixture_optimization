@@ -29,6 +29,8 @@ class ExperimentRunner:
     
     def __init__(self, config: Config, experiment_history: List[Experiment], log_config: LogConfig):
         self.config = config
+        self.config.assert_validity()
+
         self.experiment_history = experiment_history
         self.log_config = log_config
 
@@ -43,7 +45,7 @@ class ExperimentRunner:
             exp_config = self.experimemt_manager.create_next_experiment()
             self.experiment_history.append(Experiment(exp_config))
         elif len(self.experiment_history) > 0:
-            self.experimemt_manager.parse_history(self.experiment_history)
+            self.experimemt_manager.parse_history(self.experiment_history, config.domain_names)
         self._save_experiment_history()
         
     @classmethod
@@ -123,7 +125,7 @@ class ExperimentRunner:
         weights, trial_type = self.experimemt_manager.propose_next_weights()
         self.logger.info(f"Next run proposed weights: {weights}")
         weights_dict = {}
-        for i, domain_name in enumerate(self.config.train_data.keys()):
+        for i, domain_name in enumerate(self.config.domain_names):
             weights_dict[domain_name] = weights[i]
         trial_name =  f"exp_{experiment_idx}_trial_{trial_idx}"
        
@@ -153,18 +155,6 @@ class ExperimentRunner:
         return new_trial
 
     def mix_dataset(self, trial: Trial):
-
-        #iterate over all availabe gpus and block memory
-        #num_gpus = torch.cuda.device_count()
-        #memory_to_allocate_gb = 30
-        #allocated_tensors = []
-        #for device in range(num_gpus):
-        #    self.logger.info(f"Allocating memory on device {device}")
-        #    device_str = f"cuda:{device}"
-        #    tensor = allocate_memory_on_gpu(memory_to_allocate_gb, device=device_str)
-        #    allocated_tensors.append(tensor)
-
-
         assert trial.status == TrialStatus.INITIALIZED, "Run must be initialized before mixing dataset."
         if os.path.exists(trial.data_dir):
             self.logger.warning(f"Data directory {trial.data_dir} already exists. Deleting previous data to create new mixture.")
@@ -175,10 +165,9 @@ class ExperimentRunner:
         mixing_log_path = os.path.join(trial.get_workspace(self.log_config), "mixing.log")
         trial.mixing_log_path = mixing_log_path
 
-        domains = list(self.config.train_data.keys())
-        assert domains == list(trial.weights.keys()), "Weights must be in the same order as domains."
-        manifests = list(self.config.train_data.values())
-        mixing_weights = list(trial.weights.values())
+        domains = self.config.domain_names 
+        manifests = [self.config.train_data[dom] for dom in self.config.domain_names]
+        mixing_weights = [trial.weights[dom] for dom in self.config.domain_names]
         output_dir = trial.data_dir
         token_count = self.config.open_lm_config.complete_train_token_count
         chunk_size = self.config.data_mixing_config.chunk_size
@@ -188,12 +177,12 @@ class ExperimentRunner:
         mixing_seed = self.config.data_mixing_config.seed
 
         self.logger.info(f"Mixing dataset. Domains: {domains}, mixing weights: {mixing_weights}, output_dir: {output_dir}")
-        true_mixing_weights = mix_tokenized_data(domains, manifests, mixing_weights, output_dir=output_dir, output_token_count=token_count, chunk_size=chunk_size, shard_size=shard_size, oversample_factor=oversample_factor, log_path=mixing_log_path, shard_selection_multiplier=shard_selection_multiplier, seed=seed)
+        true_mixing_weights = mix_tokenized_data(domains, manifests, mixing_weights, output_dir=output_dir, output_token_count=token_count, chunk_size=chunk_size, shard_size=shard_size, oversample_factor=oversample_factor, log_path=mixing_log_path, shard_selection_multiplier=shard_selection_multiplier, seed=mixing_seed)
         self.logger.info(f"Dataset mixed. True mixing weights: {true_mixing_weights}")
 
         # Format to dict
         true_mixing_weights_dict = {}
-        for i, domain_name in enumerate(self.config.train_data.keys()):
+        for i, domain_name in enumerate(self.config.domain_names):
             true_mixing_weights_dict[domain_name] = true_mixing_weights[i]
 
         trial.true_mixing_weights = true_mixing_weights_dict
@@ -210,11 +199,6 @@ class ExperimentRunner:
         wandb.log({
             f"exp_{trial.experiment_idx}": log_obj
         })
-
-        # deallocate memory
-        # for i, tensor in enumerate(allocated_tensors):
-        #    self.logger.info(f"Deallocating memory on device {i}")
-        #    deallocate_memory_on_gpu(tensor)
         
         return trial
     
