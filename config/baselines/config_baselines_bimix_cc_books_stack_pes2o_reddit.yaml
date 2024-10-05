@@ -1,7 +1,8 @@
-name: variance_test_1_cc_books_stack_pes2o_reddit
+name: baseline_dolma_weights_cc_books_stack_reddit
 description: "Simplex sampling to find good overview of space between Books, CC and stack-v4"
 
 domain_names: ["Books", "CC", "stack-v4", "Pes2O", "Reddit"] # To guarantee the same order even after restoring (dicts are not order preserving in yaml dump)
+
 train_data:
   Books: "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/train/2048-v1/0/manifest.jsonl"
   CC: "/media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/train/2048-v1/0/manifest.jsonl"
@@ -31,7 +32,7 @@ experiment_manager_config:
     no_initializations: 1
     maximize: false
     kwargs:
-      weights: [0.15785849965438603, 0.20688125574889377, 0.2562196907435327, 0.27057763795984346,0.10846291589334407]
+      weights: [0.1538250006388879, 0.0884962419772316, 0.42668601192835803, 0.24298982730645344, 0.08800291814906899]
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # setup
@@ -73,7 +74,6 @@ data_mixing_config:
   shard_size: 2048
   oversample_factor: 1.5
   no_workers: 8
-  seed: 100 
   
 
       

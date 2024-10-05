@@ -29,14 +29,14 @@ class ExperimentManager:
         self.weight_selector = weight_selector
         return expconfig
     
-    def parse_history(self, experiment_history: List[Experiment]):
+    def parse_history(self, experiment_history: List[Experiment], domain_names: List[str]):
         assert len(experiment_history) > 0, "No experiments to parse"
         self.no_experiments = len(experiment_history)
         last_experiment = experiment_history[-1]
         self.weight_selector = weight_selector_from_history(self.config.weight_selector_config, last_experiment)
 
         for trial in last_experiment.trials:
-            self.weight_selector.attach_trial(trial.weights, trial.type)
+            self.weight_selector.attach_trial(trial.weights, trial.type, domain_names=domain_names) # domain names relevant for order of weights
             if trial.weighted_val_perplexity:
                 self.weight_selector.add_evaluation(trial.weighted_val_perplexity, trial.idx)
     

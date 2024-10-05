@@ -1,5 +1,5 @@
-name: variance_test_1_cc_books_stack_pes2o_reddit
 description: "Simplex sampling to find good overview of space between Books, CC and stack-v4"
+name: variance_test_simplex_3_cc_books_stack_pes2o_reddit
 
 domain_names: ["Books", "CC", "stack-v4", "Pes2O", "Reddit"] # To guarantee the same order even after restoring (dicts are not order preserving in yaml dump)
 train_data:
@@ -31,13 +31,13 @@ experiment_manager_config:
     no_initializations: 1
     maximize: false
     kwargs:
-      weights: [0.15785849965438603, 0.20688125574889377, 0.2562196907435327, 0.27057763795984346,0.10846291589334407]
+      weights: [0.160, 0.242, 0.312, 0.049, 0.237]
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # setup
   complete_train_token_count: 500000000
   model: open_lm_25m.json
-  seed: 100
+  seed: 130
   data_key: txt
   report_to: tensorboard
   workers: 2
@@ -73,7 +73,7 @@ data_mixing_config:
   shard_size: 2048
   oversample_factor: 1.5
   no_workers: 8
-  seed: 100 
+  seed: 130
   
 
       

@@ -88,16 +88,15 @@ class WeightSelectorInterface:
 
         return (self.no_initialization_completed() == self.config.no_initializations) and (self.no_optimization_completed() == self.config.no_optimizations)
     
-    def attach_trial(self, weights: Dict[str, float], trial_type: TrialType) -> None:
+    def attach_trial(self, weights: Dict[str, float], trial_type: TrialType, domain_names: List[str]) -> None:
         if trial_type == TrialType.INITIALIZATION:
             assert self.no_initialization_started() < self.config.no_initializations, "Too many initializations started"
         elif trial_type == TrialType.OPTIMIZATION:
             if self.config.no_optimizations is not None:
                 assert self.no_optimization_started() < self.config.no_optimizations, "Too many optimizations started"
             assert self.no_initialization_completed() == self.config.no_initializations, "Optimization started before all initializations are done"
-        
-        weights_values = list(weights.values())
-        
+
+        weights_values = [weights[domain] for domain in domain_names] # To assert order is always the same        
         self.trial_memory.append(TrialMemoryUnit(trial_index=self.get_next_trial_idx(), trial_type=trial_type, weights=weights_values))
 
     def no_initialization_started(self) -> int:

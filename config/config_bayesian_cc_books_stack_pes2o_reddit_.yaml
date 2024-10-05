@@ -1,13 +1,15 @@
-name: variance_test_1_cc_books_stack_pes2o_reddit
+name: bayesian_books_cc_stack_pes2o_reddit_c4_wiki_32_init
 description: "Simplex sampling to find good overview of space between Books, CC and stack-v4"
 
-domain_names: ["Books", "CC", "stack-v4", "Pes2O", "Reddit"] # To guarantee the same order even after restoring (dicts are not order preserving in yaml dump)
+domain_names: ["Books", "CC", "stack-v4", "Pes2O", "Reddit", "C4", "Wiki"]
 train_data:
   Books: "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/train/2048-v1/0/manifest.jsonl"
   CC: "/media/ssd1/tim/dolma_v1.6_small/tokenized/cc_en_head/train/2048-v1/0/manifest.jsonl"
   stack-v4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/stack-v4-train/train/2048-v1/0/manifest.jsonl"
   Pes2O: "/media/ssd1/tim/dolma_v1.6_small/tokenized/pes2o_v2/train/2048-v1/0/manifest.jsonl"
   Reddit: "/media/ssd1/tim/dolma_v1.6_small/tokenized/reddit-v5-dedupe-pii-nsfw-toxic/train/2048-v1/0/manifest.jsonl"
+  C4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/c4/train/2048-v1/0/manifest.jsonl"
+  Wiki: "/media/ssd1/tim/dolma_v1.6_small/tokenized/en_simple_wiki_v0/train/2048-v1/0/manifest.jsonl"
 
 val_data:
   Books: "/media/ssd1/tim/dolma_v1.6_small/tokenized/book/val/2048-v1/0/shard-0000000.tar"
@@ -15,9 +17,10 @@ val_data:
   stack-v4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/stack-v4-train/val/2048-v1/0/shard-0000000.tar"
   Pes2O: "/media/ssd1/tim/dolma_v1.6_small/tokenized/pes2o_v2/val/2048-v1/0/shard-0000000.tar"
   Reddit: "/media/ssd1/tim/dolma_v1.6_small/tokenized/reddit-v5-dedupe-pii-nsfw-toxic/val/2048-v1/0/shard-0000000.tar"
+  C4: "/media/ssd1/tim/dolma_v1.6_small/tokenized/c4/val/2048-v1/0/shard-0000000.tar"
+  Wiki: "/media/ssd1/tim/dolma_v1.6_small/tokenized/en_simple_wiki_v0/val/2048-v1/0/shard-0000000.tar"
 
-
-val_weights: [1, 1, 1, 1, 1]
+val_weights: [1, 1, 1, 1, 1, 1, 1]
 workspace: /root/code/mixture_optimization/logs
 data_workspace: /media/ssd1/tim/data_workspace
 delete_dataset_after_run: True
@@ -26,12 +29,11 @@ dataset_tag: "dolma_v1_6_small"
 experiment_manager_config:
   no_experiments: 1
   weight_selector_config:
-    type: "deterministic"
-    no_weights: 5
-    no_initializations: 1
+    type: "bayesian"
+    no_weights: 7
+    no_initializations: 32
+    no_optimizations: 80
     maximize: false
-    kwargs:
-      weights: [0.15785849965438603, 0.20688125574889377, 0.2562196907435327, 0.27057763795984346,0.10846291589334407]
 
 open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
   # setup
@@ -71,9 +73,10 @@ open_lm_config: # Config for openLM model, i.e model size, hyperparameters, ...
 data_mixing_config:
   chunk_size: 2048
   shard_size: 2048
-  oversample_factor: 1.5
+  oversample_factor: 1.2
   no_workers: 8
-  seed: 100 
+  shard_selection_multiplier: 3.0
+
   
 
       

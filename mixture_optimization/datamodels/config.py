@@ -23,6 +23,7 @@ class Config:
     name: str
     description: str
     train_data: Dict[str, str]
+    domain_names: List[str]
     val_data: Dict[str, str]
     val_weights: List[float]
     data_workspace: str
@@ -33,3 +34,11 @@ class Config:
     data_mixing_config: DataMixingConfig
     id: Optional[str] = None
     delete_run_after_run: bool = True
+
+    def assert_validity(self):
+        train_data_names = list(self.train_data.keys())
+        train_data_names_sorted = sorted(train_data_names)
+        domain_names = sorted(self.domain_names)
+        assert len(train_data_names) == len(domain_names), "Number of train data and domain names should be the same"
+        for n1, n2 in zip(train_data_names_sorted, domain_names):
+            assert n1 == n2, "Train data and domain names should be the same"

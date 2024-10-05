@@ -22,7 +22,7 @@ def save_experiments(experiments, path):
         yaml.dump(cattrs.unstructure(experiments), f)
 
 if __name__ == "__main__":
-    experiment_history_path = "/root/code/mixture_optimization/logs/bayesian_books_cc_stack_pes20_small_0/experiment_history_original.yaml"
+    experiment_history_path = "/root/code/mixture_optimization/logs/bayesian_books_cc_stack_pes20_small_1/experiment_history.yaml"
 
     experiments = read_experiments(experiment_history_path)
 
@@ -42,6 +42,6 @@ if __name__ == "__main__":
         experiment.trials = [trial for trial in experiment.trials if trial.experiment_idx == i]
         output_experiments.append(experiment)
 
-    save_path = "/root/code/mixture_optimization/logs/bayesian_books_cc_stack_pes20_small_0/experiment_history_filtered.yaml"
+    save_path = "/root/code/mixture_optimization/logs/bayesian_books_cc_stack_pes20_small_1/experiment_history_filtered.yaml"
     save_experiments(output_experiments, save_path)
     print(f"Filtered experiments saved to {save_path}")
