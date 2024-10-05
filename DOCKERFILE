@@ -1,0 +1,66 @@
+from pytorch/pytorch:2.3.0-cuda11.8-cudnn8-runtime
+
+# Install basic tools
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    vim \
+    nano \
+    build-essential \
+    gcc \
+    make \
+    cmake \
+    net-tools \
+    iputils-ping \
+    dnsutils \
+    mysql-client \
+    postgresql-client \
+    redis-tools \
+    htop \
+    jq \
+    tree \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker CLI
+RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-20.10.7.tgz | tar xzvf - --strip 1 -C /usr/local/bin docker/docker
+
+# Upgrade pip
+RUN pip install --upgrade pip
+
+# Use PyTorch index URL for xformers and install it
+RUN pip install xformers --index-url https://download.pytorch.org/whl/cu118
+
+# Install the rest of the dependencies
+RUN pip install \
+    tiktoken \
+    wandb \
+    webdataset \
+    pandas==2.1.4 \
+    fsspec \
+    tqdm \
+    jsonlines \
+    boto3==1.26.90 \
+    Pillow \
+    zstandard \
+    pysimdjson \
+    cloudpathlib \
+    datasets \
+    multiprocess>=0.70.11 \
+    dill \
+    huggingface_hub \
+    pre-commit \
+    "ray[all]" \
+    loguru \
+    transformers \
+    s3fs \
+    wikipedia \
+    ipython \
+    mosaicml \
+    tensorboard \
+    botorch \
+    coolname \
+    attrs \
+    cattrs \
+    PyYaml \
+    ax-platform
