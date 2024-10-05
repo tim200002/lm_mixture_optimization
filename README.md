@@ -4,7 +4,7 @@ This repository contains the code from my research internship, which focuses on 
 
 In this project, I explored a novel approach to optimize the data mixtures used in LLM pre-training by applying Bayesian Optimization on down-scaled proxy models. This method provided a computationally efficient way to identify promising mixtures, outperforming other techniques when normalized for training costs. However, scaling these mixtures from proxy models to production-scale models proved challenging, highlighting the need for further research in this area.
 
-The final report is available [here](assets/report.pdf). The final presentation is available [here](assets/presentation.pptx).
+The final report is available [here](assets/report.pdf). The final presentation is available [here](assets/presentation.pdf).
 
 ## Abstract
 To achieve broad knowledge across many tasks, language models (LM) are pre-trained with text from a wide range of different datasets/domains. The proportions of these datasets play a crucial role in determining LM performance. In this work, we introduce a novel approach to data-mixture optimization, formulating it as a sequential black-box optimization problem, solved using Bayesian Optimization (BO). BO is employed to leverage its sample efficiency, enabling effective exploration of the data mixture space while minimizing the number of training runs required. Instead of working on a full production scale, our method identifies optimal data mixtures on a down-scaled proxy model, which is more effective to train than the full-scale model, assuming that optimal mixture distributions remain consistent across model scales.  
